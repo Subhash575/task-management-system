@@ -61,7 +61,13 @@ function EditTaskForm({ task, statusOnly, onCancel, onUpdated }) {
         </Alert>
       )}
 
-      <TaskFormFields values={values} errors={errors} update={update} statusOnly={statusOnly} />
+      <TaskFormFields
+        values={values}
+        errors={errors}
+        update={update}
+        statusOnly={statusOnly}
+        currentAssignee={task.assignee}
+      />
 
       <DialogFooter className="gap-2 sm:gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>

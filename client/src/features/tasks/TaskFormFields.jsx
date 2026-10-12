@@ -1,47 +1,10 @@
-import { useId } from 'react'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
+import { AssigneeField } from './AssigneeField'
+import { Field } from './Field'
 import { LIMITS } from './taskForm'
 import { TASK_PRIORITIES, TASK_STATUSES } from './tasks'
-
-/** Label + control + hint + inline error, wired together for screen readers. */
-export function Field({ label, required, error, hint, children }) {
-  const id = useId()
-  const hintId = `${id}-hint`
-  const errorId = `${id}-error`
-  const describedBy = [hint && hintId, error && errorId].filter(Boolean).join(' ') || undefined
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id}>
-        {label}
-        {required && (
-          <span aria-hidden="true" className="text-destructive">
-            *
-          </span>
-        )}
-      </Label>
-      {children({
-        id,
-        'aria-invalid': error ? true : undefined,
-        'aria-required': required || undefined,
-        'aria-describedby': describedBy,
-      })}
-      {hint && (
-        <p id={hintId} className="text-sm text-muted-foreground">
-          {hint}
-        </p>
-      )}
-      {error && (
-        <p id={errorId} className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
-    </div>
-  )
-}
 
 const StatusSelect = ({ values, errors, update }) => (
   <Field label="Status" error={errors.status}>
@@ -58,10 +21,11 @@ const StatusSelect = ({ values, errors, update }) => (
 )
 
 /**
- * The shared task fields. With `statusOnly` (assignees may only change the status) just the status is shown.
- * Assignee is deferred until the API can list users, so `showAssignee` renders a disabled placeholder.
+ * The shared task fields. With `statusOnly` (assignees may only change the status) just the status is shown,
+ * so assignees never get a control for fields they are not allowed to change.
+ * `currentAssignee` is the task's existing assignee when editing.
  */
-export function TaskFormFields({ values, errors, update, statusOnly = false, showAssignee = false }) {
+export function TaskFormFields({ values, errors, update, statusOnly = false, currentAssignee = null }) {
   if (statusOnly) return <StatusSelect values={values} errors={errors} update={update} />
 
   return (
@@ -91,20 +55,16 @@ export function TaskFormFields({ values, errors, update, statusOnly = false, sho
         </Field>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid items-start gap-4 sm:grid-cols-2">
         <Field label="Due date" error={errors.dueDate}>
           {(props) => <Input {...props} type="date" value={values.dueDate} onChange={update('dueDate')} />}
         </Field>
-        {/* There is no endpoint for listing users yet, so assigning is deferred rather than faked. */}
-        {showAssignee && (
-          <Field label="Assignee" hint="Assigning people is not available yet.">
-            {(props) => (
-              <NativeSelect {...props} disabled className="w-full">
-                <NativeSelectOption value="">Unassigned</NativeSelectOption>
-              </NativeSelect>
-            )}
-          </Field>
-        )}
+        <AssigneeField
+          value={values.assignee}
+          onChange={update('assignee')}
+          error={errors.assignee}
+          currentAssignee={currentAssignee}
+        />
       </div>
 
       <Field

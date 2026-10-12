@@ -32,6 +32,7 @@ function taskApi({ onPost } = {}) {
   return stubApi({
     'GET /auth/me': signedIn,
     'GET /tasks': () => jsonResponse(listBody(tasks)),
+    'GET /users': () => jsonResponse({ users: [creator] }),
     'POST /tasks': (options) => {
       if (onPost) return onPost(options, tasks)
       const task = makeTask({ id: 't2', ...JSON.parse(options.body), creator })
@@ -49,7 +50,7 @@ async function openDialog(user) {
 }
 
 describe('create task dialog', () => {
-  it('opens with backend-consistent defaults and a disabled assignee field', async () => {
+  it('opens with backend-consistent defaults and an unassigned assignee', async () => {
     taskApi()
     const user = userEvent.setup()
     renderRoute('/')
@@ -61,8 +62,8 @@ describe('create task dialog', () => {
     expect(form.getByLabelText('Status')).toHaveValue('To Do')
     expect(form.getByLabelText('Priority')).toHaveValue('Medium')
     expect(form.getByLabelText(/^Title/)).toHaveAttribute('aria-required', 'true')
-    expect(form.getByLabelText('Assignee')).toBeDisabled()
-    expect(form.getByText('Assigning people is not available yet.')).toBeInTheDocument()
+    expect(await form.findByRole('option', { name: /Ada Lovelace/ })).toBeInTheDocument()
+    expect(form.getByLabelText('Assignee')).toHaveValue('')
     expect(form.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
   })
 
@@ -126,6 +127,7 @@ describe('create task dialog', () => {
       priority: 'Critical',
       labels: ['release', 'ops'],
       dueDate: '2030-06-30',
+      assignee: null,
     })
     expect(postCalls(fetchMock)[0][1]).toMatchObject({ credentials: 'include' })
     expect(await screen.findByRole('heading', { level: 2, name: 'Ship the release' })).toBeInTheDocument()
@@ -150,6 +152,7 @@ describe('create task dialog', () => {
       priority: 'Medium',
       labels: [],
       dueDate: null,
+      assignee: null,
     })
   })
 

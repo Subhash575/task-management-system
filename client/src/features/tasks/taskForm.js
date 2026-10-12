@@ -11,9 +11,10 @@ export const INITIAL_FORM = {
   priority: 'Medium',
   labels: '',
   dueDate: '',
+  assignee: '', // user id, or '' for unassigned
 }
 
-export const FORM_FIELDS = ['title', 'description', 'status', 'priority', 'labels', 'dueDate']
+export const FORM_FIELDS = ['title', 'description', 'status', 'priority', 'labels', 'dueDate', 'assignee']
 
 /** "bug, UI, bug" -> ['bug', 'UI'] (trimmed, empty entries dropped, case-insensitive de-duplication). */
 export function parseLabels(text) {
@@ -44,7 +45,7 @@ export function validateTaskForm(values) {
   return errors
 }
 
-/** The request body for POST /api/tasks. No creator (the server uses the session) and no assignee yet. */
+/** The request body for POST /api/tasks. No creator: the server takes it from the session. */
 export function buildCreatePayload(values) {
   return {
     title: values.title.trim(),
@@ -53,6 +54,7 @@ export function buildCreatePayload(values) {
     priority: values.priority,
     labels: parseLabels(values.labels),
     dueDate: values.dueDate || null, // <input type="date"> gives "YYYY-MM-DD", which the API accepts
+    assignee: values.assignee || null, // null = unassigned; the server checks that the user exists
   }
 }
 
@@ -65,12 +67,13 @@ export function taskToFormValues(task) {
     priority: task.priority,
     labels: task.labels.join(', '),
     dueDate: task.dueDate ? task.dueDate.slice(0, 10) : '',
+    assignee: task.assignee?.id ?? '',
   }
 }
 
 /**
  * The PATCH body: only fields that actually changed, so an untouched field (or one the user may not edit)
- * is never re-sent. `statusOnly` is for assignees, who may only change the status. Never includes creator or assignee.
+ * is never re-sent. `statusOnly` is for assignees, who may only change the status. Never includes creator.
  */
 export function buildUpdatePayload(task, values, { statusOnly = false } = {}) {
   const changes = {}
@@ -83,6 +86,7 @@ export function buildUpdatePayload(task, values, { statusOnly = false } = {}) {
   if (full.priority !== task.priority) changes.priority = full.priority
   if (JSON.stringify(full.labels) !== JSON.stringify(task.labels)) changes.labels = full.labels
   if (full.dueDate !== (task.dueDate ? task.dueDate.slice(0, 10) : null)) changes.dueDate = full.dueDate
+  if (full.assignee !== (task.assignee?.id ?? null)) changes.assignee = full.assignee
   return changes
 }
 

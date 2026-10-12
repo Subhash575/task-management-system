@@ -54,7 +54,7 @@ function CreateTaskForm({ onCancel, onCreated }) {
         </Alert>
       )}
 
-      <TaskFormFields values={values} errors={errors} update={update} showAssignee />
+      <TaskFormFields values={values} errors={errors} update={update} />
 
       <DialogFooter className="gap-2 sm:gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>

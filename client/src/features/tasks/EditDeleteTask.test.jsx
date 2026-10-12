@@ -30,6 +30,7 @@ function taskApi(initialTasks, { onPatch, onDelete } = {}) {
   const tasks = [...initialTasks]
   const fetchMock = stubApi({
     'GET /auth/me': signedIn,
+    'GET /users': () => jsonResponse({ users: [ada, bob] }),
     'GET /tasks': (_options, url) => {
       const pageNumber = Number(new URL(url, 'http://localhost').searchParams.get('page'))
       const slice = tasks.slice((pageNumber - 1) * 10, pageNumber * 10)
@@ -84,7 +85,7 @@ describe('edit task', () => {
     expect(dialog.getByLabelText('Priority')).toHaveValue('High')
     expect(dialog.getByLabelText('Labels')).toHaveValue('ui, design')
     expect(dialog.getByLabelText('Due date')).toHaveValue('2030-06-30')
-    expect(dialog.queryByLabelText('Assignee')).not.toBeInTheDocument()
+    expect(dialog.getByLabelText('Assignee')).toHaveValue('')
   })
 
   it('sends only the changed fields, closes, and refreshes the list', async () => {
@@ -130,7 +131,7 @@ describe('edit task', () => {
     })
   })
 
-  it('never sends creator or assignee', async () => {
+  it('never sends the creator, nor an assignee that did not change', async () => {
     const fetchMock = taskApi([makeTask({ assignee: bob })])
     const user = userEvent.setup()
     renderRoute('/')

@@ -146,6 +146,14 @@ All task endpoints require a signed-in user (`401` otherwise).
 - **Who can do what:** you can see a task only if you created it or it is assigned to you. Anything else returns `404`, the same as a task that doesn't exist. The creator can edit and delete. An assignee can change only `status` (other fields return `403`) and cannot delete (`403`). The assignee must be an existing user (`400` otherwise). `creator` can't be changed.
 - `creator` and `assignee` come back as `{ id, name, email }`.
 
+### Users (assignee picker)
+
+| Method | Path         | Auth | Description |
+| ------ | ------------ | ---- | ----------- |
+| GET    | `/api/users` | ✔    | `200 { users: [{ id, name, email }] }`, sorted by name. `401` when signed out |
+
+Query: `search` (optional, up to 100 characters, case-insensitive partial match on name or email) and `limit` (default 20, max 50). Only `id`, `name` and `email` are ever returned. Any signed-in user can list registered users, which is what lets them assign tasks to each other.
+
 ### How sessions work
 
 - On register or login, the API signs a JWT (HS256, `sub` = user id) and stores it in an **HTTP-only** cookie (`SameSite=Lax`, plus `Secure` in production). Browser JavaScript can't read it, and the browser sends it automatically.
