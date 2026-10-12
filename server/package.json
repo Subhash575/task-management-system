@@ -12,6 +12,7 @@
     "start": "node src/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
+    "seed": "node src/seed/seed.js",
     "lint": "eslint ."
   },
   "dependencies": {
