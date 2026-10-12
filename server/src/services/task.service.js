@@ -1,4 +1,5 @@
 import { Task } from '../models/Task.js';
+import { TaskStatusChange } from '../models/TaskStatusChange.js';
 import { User } from '../models/User.js';
 import { AppError } from '../utils/AppError.js';
 
@@ -52,9 +53,16 @@ export async function listTasks(user, { page, limit, status, priority, scope }) 
   return { tasks, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
 }
 
+/** The task plus its status history, oldest change first. */
 export async function getTask(user, taskId) {
   const task = await findVisibleTask(taskId, user.id);
-  return task.populate(populateUsers);
+  await task.populate(populateUsers);
+
+  const changes = await TaskStatusChange.find({ task: task._id })
+    .sort({ changedAt: 1, _id: 1 })
+    .populate({ path: 'changedBy', select: USER_SUMMARY });
+
+  return { ...task.toJSON(), statusHistory: changes.map((change) => change.toJSON()) };
 }
 
 export async function updateTask(user, taskId, changes) {
@@ -70,9 +78,17 @@ export async function updateTask(user, taskId, changes) {
     await assertAssigneeExists(changes.assignee);
   }
 
-  task.set(changes);
-  await task.save();
-  return task.populate(populateUsers);
+  // Update atomically and get the document as it was *before*, so the recorded old status is exactly
+  // the status this request replaced, even if two people change the task at the same moment.
+  const before = await Task.findOneAndUpdate({ _id: task._id }, { $set: changes }, { new: false, runValidators: true });
+  if (!before) throw new AppError(404, 'Task not found'); // deleted while we were working
+
+  // History is written here, inside the authorized update, and only when the status really changed.
+  if (changes.status && changes.status !== before.status) {
+    await TaskStatusChange.create({ task: task._id, from: before.status, to: changes.status, changedBy: user.id });
+  }
+
+  return Task.findById(task._id).populate(populateUsers);
 }
 
 export async function deleteTask(user, taskId) {
@@ -81,4 +97,5 @@ export async function deleteTask(user, taskId) {
     throw new AppError(403, 'Only the creator can delete this task');
   }
   await task.deleteOne();
+  await TaskStatusChange.deleteMany({ task: task._id }); // its history goes with it
 }

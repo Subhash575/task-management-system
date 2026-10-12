@@ -1,5 +1,6 @@
 import { useDraggable } from '@dnd-kit/core'
 import { CalendarDays, GripVertical, Loader2, UserRound } from 'lucide-react'
+import { Link, useLocation } from 'react-router'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { PriorityBadge } from './TaskBadges'
 import { TASK_STATUSES } from './tasks'
@@ -13,6 +14,7 @@ const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', tim
  * Two ways to change status: drag the handle, or use the "Move to" select (keyboard, touch and screen reader friendly).
  */
 export function BoardCard({ task, canMove, isMoving, onMove }) {
+  const location = useLocation()
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
     disabled: !canMove || isMoving,
@@ -43,7 +45,16 @@ export function BoardCard({ task, canMove, isMoving, onMove }) {
             <GripVertical className="size-4" aria-hidden="true" />
           </button>
         )}
-        <h3 className="min-w-0 flex-1 text-sm leading-snug font-medium break-words">{task.title}</h3>
+        <h3 className="min-w-0 flex-1 text-sm leading-snug font-medium break-words">
+          {/* Only the drag handle starts a drag, so this link still works normally. */}
+          <Link
+            to={`/tasks/${task.id}`}
+            state={{ from: location.pathname + location.search }}
+            className="rounded-sm hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+          >
+            {task.title}
+          </Link>
+        </h3>
         {isMoving && <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" aria-hidden="true" />}
       </div>
 

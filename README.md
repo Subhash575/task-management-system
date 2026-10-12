@@ -137,7 +137,7 @@ All task endpoints require a signed-in user (`401` otherwise).
 | ------ | ---------------- | ----------- |
 | POST   | `/api/tasks`     | Create a task → `201 { task }`. The creator is always the signed-in user |
 | GET    | `/api/tasks`     | List visible tasks → `200 { tasks, pagination: { page, limit, total, totalPages } }`, newest first |
-| GET    | `/api/tasks/:id` | Get one task → `200 { task }` |
+| GET    | `/api/tasks/:id` | Get one task → `200 { task }`, where `task.statusHistory` lists status changes oldest first as `{ id, from, to, changedAt, changedBy: { id, name, email } }` |
 | PATCH  | `/api/tasks/:id` | Update fields (at least one) → `200 { task }` |
 | DELETE | `/api/tasks/:id` | Delete a task → `204` |
 
@@ -145,6 +145,7 @@ All task endpoints require a signed-in user (`401` otherwise).
 - **List query:** `page` (default 1), `limit` (default 20, max 100), `status`, `priority`, and `scope=created` (created by me) or `scope=assigned` (assigned to me).
 - **Who can do what:** you can see a task only if you created it or it is assigned to you. Anything else returns `404`, the same as a task that doesn't exist. The creator can edit and delete. An assignee can change only `status` (other fields return `403`) and cannot delete (`403`). The assignee must be an existing user (`400` otherwise). `creator` can't be changed.
 - `creator` and `assignee` come back as `{ id, name, email }`.
+- **Status history:** an entry is written, inside the normal authorized update, only when a `PATCH` really changes the status (creating a task or sending the same status writes nothing). Entries are never edited, have no route of their own, and are deleted with the task. The detail page in the UI is at `/tasks/:id`; the Kanban board is at `/board`.
 
 ### Users (assignee picker)
 

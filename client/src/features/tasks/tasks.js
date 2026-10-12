@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { sessionQueryKey } from '@/features/auth/auth'
 import { apiRequest } from '@/lib/api'
 
 // Must match the server's allowed values (server/src/models/Task.js).
@@ -19,6 +20,7 @@ export const INITIAL_FILTERS = { status: '', priority: '', scope: '', page: 1 }
 export const taskKeys = {
   all: ['tasks'],
   list: (filters) => ['tasks', 'list', filters],
+  detail: (id) => ['tasks', 'detail', id],
 }
 
 export function fetchTasks({ page, status, priority, scope }, signal) {
@@ -77,6 +79,26 @@ export function useDeleteTask() {
   return useMutation({
     mutationFn: deleteTask,
     onSettled: () => queryClient.invalidateQueries({ queryKey: taskKeys.all }),
+  })
+}
+
+/**
+ * One task with its status history (oldest change first): `{ ...task, statusHistory }`.
+ * A 401 means the session is gone, so the cached session is cleared and the protected route sends the user to login.
+ */
+export function useTask(id) {
+  const queryClient = useQueryClient()
+  return useQuery({
+    queryKey: taskKeys.detail(id),
+    queryFn: async ({ signal }) => {
+      try {
+        const { task } = await apiRequest(`/tasks/${id}`, { signal })
+        return task
+      } catch (error) {
+        if (error.status === 401) queryClient.setQueryData(sessionQueryKey, null)
+        throw error
+      }
+    },
   })
 }
 

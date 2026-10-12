@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { GuestRoute, ProtectedRoute } from '@/features/auth/AuthGuards'
+import { TaskDetailPage } from '@/pages/TaskDetailPage'
 import { TasksPage } from '@/pages/TasksPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
@@ -24,6 +25,7 @@ export const routes = [
         children: [
           { index: true, element: <TasksPage view="list" /> },
           { path: 'board', element: <TasksPage view="board" /> },
+          { path: 'tasks/:id', element: <TaskDetailPage /> },
         ],
       },
       { path: '*', element: <NotFoundPage /> },

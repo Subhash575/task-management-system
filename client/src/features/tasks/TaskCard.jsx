@@ -1,3 +1,4 @@
+import { Link, useLocation } from 'react-router'
 import { CalendarDays, Pencil, Trash2, User, UserRound } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -9,11 +10,22 @@ const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', tim
 
 /** `onEdit` / `onDelete` are only passed for actions the user is expected to be allowed to do. */
 export function TaskCard({ task, onEdit, onDelete }) {
+  const location = useLocation()
+
   return (
     <Card className="gap-3 py-4">
       <CardContent className="flex flex-col gap-3 px-4 sm:px-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <h2 className="text-base leading-snug font-semibold break-words">{task.title}</h2>
+          <h2 className="text-base leading-snug font-semibold break-words">
+            {/* `from` lets the detail page's "Back" link return to this exact view (filters, page, or board). */}
+            <Link
+              to={`/tasks/${task.id}`}
+              state={{ from: location.pathname + location.search }}
+              className="rounded-sm hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+            >
+              {task.title}
+            </Link>
+          </h2>
           <div className="flex shrink-0 flex-wrap gap-2">
             <StatusBadge status={task.status} />
             <PriorityBadge priority={task.priority} />
