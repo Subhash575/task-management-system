@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AlertCircle, CheckCircle2, Plus, RefreshCw } from 'lucide-react'
+import { AlertCircle, CheckCircle2, LayoutGrid, List, Plus, RefreshCw } from 'lucide-react'
 import { NavLink, useSearchParams } from 'react-router'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -19,10 +19,21 @@ function TaskListSkeleton() {
   return (
     <div role="status" aria-label="Loading tasks" className="flex flex-col gap-3">
       {Array.from({ length: 3 }, (_, index) => (
-        <div key={index} className="flex flex-col gap-3 rounded-xl border p-4">
-          <Skeleton className="h-5 w-2/3" />
+        // Mirrors a real card (title + badges, description, meta), so the page doesn't jump when tasks arrive.
+        <div key={index} className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-xs sm:p-5">
+          <div className="flex items-start justify-between gap-4">
+            <Skeleton className="h-5 w-1/2" />
+            <div className="flex gap-2">
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </div>
+          </div>
           <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-1/3" />
+          <Skeleton className="h-4 w-2/3" />
+          <div className="flex gap-4">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-4 w-28" />
+          </div>
         </div>
       ))}
     </div>
@@ -89,30 +100,34 @@ export function TasksPage({ view = 'list' }) {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Tasks</h1>
-          <p className="text-muted-foreground">Tasks you created or that are assigned to you.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-foreground">Tasks</h1>
+          <p className="text-sm text-slate-600 dark:text-slate-300">Tasks you created or that are assigned to you.</p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
+        <Button
+          onClick={() => setCreateOpen(true)}
+          className="w-full bg-indigo-600 text-white shadow-xs hover:bg-indigo-700 focus-visible:ring-indigo-500/50 sm:w-auto"
+        >
           <Plus aria-hidden="true" />
           Create Task
         </Button>
       </div>
 
-      <nav aria-label="Task views" className="inline-flex w-fit rounded-lg border bg-muted/40 p-1">
+      <nav aria-label="Task views" className="inline-flex w-fit rounded-lg border bg-slate-100 p-1 dark:bg-muted/40">
         {[
-          { to: '/', label: 'List', end: true },
-          { to: '/board', label: 'Board' },
-        ].map(({ to, label, end }) => (
+          { to: '/', label: 'List', end: true, icon: List },
+          { to: '/board', label: 'Board', icon: LayoutGrid },
+        ].map(({ to, label, end, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
             end={end}
             className={({ isActive }) =>
-              `rounded-md px-3 py-1 text-sm font-medium focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none ${
-                isActive ? 'bg-background shadow-xs' : 'text-muted-foreground hover:text-foreground'
+              `flex items-center gap-1.5 rounded-md px-3 py-1 text-sm font-medium outline-none focus-visible:ring-[3px] focus-visible:ring-indigo-500/50 ${
+                isActive ? 'bg-white text-indigo-700 shadow-xs dark:bg-background dark:text-indigo-300' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300'
               }`
             }
           >
+            <Icon className="size-4" aria-hidden="true" />
             {label}
           </NavLink>
         ))}
@@ -174,19 +189,19 @@ export function TasksPage({ view = 'list' }) {
         {isPending && <TaskListSkeleton />}
 
         {isError && (
-          <div className="flex flex-col items-start gap-3">
-            <p role="alert" className="flex items-center gap-2 text-destructive">
+          <div className="flex flex-col items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-5 dark:border-red-900 dark:bg-red-950/40">
+            <p role="alert" className="flex items-center gap-2 text-sm font-medium text-red-800 dark:text-red-300">
               <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
               Could not load tasks. Check your connection and try again.
             </p>
-            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching} className="bg-white">
               <RefreshCw className={isFetching ? 'animate-spin' : undefined} aria-hidden="true" />
               Try again
             </Button>
           </div>
         )}
 
-        {data && data.tasks.length === 0 && filters.page === 1 && <TaskEmptyState filtered={hasFilters} onClear={clearFilters} />}
+        {data && data.tasks.length === 0 && filters.page === 1 && <TaskEmptyState filtered={hasFilters} onClear={clearFilters} onCreate={() => setCreateOpen(true)} />}
 
         {data && data.tasks.length > 0 && (
           <>

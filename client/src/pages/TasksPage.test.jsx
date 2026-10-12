@@ -245,3 +245,67 @@ describe('TasksPage filters', () => {
 function waitForQuery(fetchMock, key, value) {
   return waitFor(() => expect(lastTaskQuery(fetchMock).get(key)).toBe(value))
 }
+
+describe('TasksPage polish', () => {
+  it('marks a task as overdue when its due date has passed and it is not completed', async () => {
+    stubApi({
+      'GET /auth/me': signedIn,
+      'GET /tasks': () =>
+        page([
+          makeTask({ id: 'late', title: 'Late task', dueDate: '2000-01-01T00:00:00.000Z', status: 'In Progress' }),
+          makeTask({ id: 'done', title: 'Done late', dueDate: '2000-01-01T00:00:00.000Z', status: 'Completed' }),
+          makeTask({ id: 'future', title: 'Future task', dueDate: '2999-01-01T00:00:00.000Z' }),
+          makeTask({ id: 'none', title: 'No date', dueDate: null }),
+        ]),
+    })
+    renderRoute('/')
+
+    const card = (title) => screen.findByRole('heading', { name: title }).then((heading) => heading.closest('article'))
+    expect(within(await card('Late task')).getByText('Overdue')).toBeInTheDocument()
+    expect(within(await card('Done late')).queryByText('Overdue')).not.toBeInTheDocument()
+    expect(within(await card('Future task')).queryByText('Overdue')).not.toBeInTheDocument()
+    expect(within(await card('No date')).queryByText('Overdue')).not.toBeInTheDocument()
+  })
+
+  it('offers a Create your first task action in the empty state, which opens the dialog', async () => {
+    stubApi({ 'GET /auth/me': signedIn, 'GET /tasks': () => page([], { total: 0, totalPages: 0 }), 'GET /users': () => jsonResponse({ users: [] }) })
+    const user = userEvent.setup()
+    renderRoute('/')
+
+    await user.click(await screen.findByRole('button', { name: 'Create your first task' }))
+
+    expect(await screen.findByRole('dialog', { name: 'Create task' })).toBeInTheDocument()
+  })
+
+  it('does not offer that action when filters are the reason for no results', async () => {
+    stubApi({ 'GET /auth/me': signedIn, 'GET /tasks': () => page([], { total: 0, totalPages: 0 }) })
+    renderRoute('/?status=Idea')
+
+    expect(await screen.findByRole('heading', { name: 'No tasks match these filters' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Create your first task' })).not.toBeInTheDocument()
+  })
+
+  it('highlights active filters and enables Clear filters only while one is active', async () => {
+    stubApi({ 'GET /auth/me': signedIn, 'GET /tasks': () => page([makeTask()]) })
+    const user = userEvent.setup()
+    renderRoute('/')
+    await screen.findByText('Design login screen')
+
+    const priority = screen.getByLabelText('Priority')
+    expect(priority.className).not.toContain('indigo')
+    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeDisabled()
+
+    await user.selectOptions(priority, 'High')
+
+    expect(screen.getByLabelText('Priority').className).toContain('indigo')
+    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeEnabled()
+  })
+
+  it('keeps the list/board switch with icons but unchanged names and links', async () => {
+    stubApi({ 'GET /auth/me': signedIn, 'GET /tasks': () => page([makeTask()]) })
+    renderRoute('/')
+
+    expect(await screen.findByRole('link', { name: 'List' })).toHaveAttribute('href', '/')
+    expect(screen.getByRole('link', { name: 'Board' })).toHaveAttribute('href', '/board')
+  })
+})
