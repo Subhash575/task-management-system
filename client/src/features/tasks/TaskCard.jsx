@@ -1,12 +1,14 @@
-import { CalendarDays, User, UserRound } from 'lucide-react'
+import { CalendarDays, Pencil, Trash2, User, UserRound } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { PriorityBadge, StatusBadge } from './TaskBadges'
 
 // Date-only due dates are stored as midnight UTC, so format in UTC to avoid showing the previous day.
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeZone: 'UTC' })
 
-export function TaskCard({ task }) {
+/** `onEdit` / `onDelete` are only passed for actions the user is expected to be allowed to do. */
+export function TaskCard({ task, onEdit, onDelete }) {
   return (
     <Card className="gap-3 py-4">
       <CardContent className="flex flex-col gap-3 px-4 sm:px-6">
@@ -59,6 +61,23 @@ export function TaskCard({ task }) {
             </div>
           )}
         </dl>
+
+        {(onEdit || onDelete) && (
+          <div className="flex gap-2 border-t pt-3">
+            {onEdit && (
+              <Button variant="outline" size="sm" onClick={onEdit} aria-label={`Edit task: ${task.title}`}>
+                <Pencil aria-hidden="true" />
+                Edit
+              </Button>
+            )}
+            {onDelete && (
+              <Button variant="outline" size="sm" onClick={onDelete} aria-label={`Delete task: ${task.title}`}>
+                <Trash2 aria-hidden="true" />
+                Delete
+              </Button>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   )

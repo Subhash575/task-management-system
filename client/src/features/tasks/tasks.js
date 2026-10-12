@@ -50,3 +50,31 @@ export function useCreateTask() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: taskKeys.all }),
   })
 }
+
+export function updateTask({ id, changes }) {
+  return apiRequest(`/tasks/${id}`, { method: 'PATCH', body: changes })
+}
+
+export function deleteTask(id) {
+  return apiRequest(`/tasks/${id}`, { method: 'DELETE' })
+}
+
+// onSettled (not onSuccess): after a failure such as 404 the list may be stale too, so refresh either way.
+
+/** Updates a task, then refreshes every cached task list. */
+export function useUpdateTask() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: updateTask,
+    onSettled: () => queryClient.invalidateQueries({ queryKey: taskKeys.all }),
+  })
+}
+
+/** Deletes a task, then refreshes every cached task list. */
+export function useDeleteTask() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: deleteTask,
+    onSettled: () => queryClient.invalidateQueries({ queryKey: taskKeys.all }),
+  })
+}

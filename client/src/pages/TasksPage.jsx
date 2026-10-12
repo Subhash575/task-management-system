@@ -3,7 +3,10 @@ import { AlertCircle, CheckCircle2, ClipboardList, Plus, RefreshCw } from 'lucid
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useSession } from '@/features/auth/auth'
 import { CreateTaskDialog } from '@/features/tasks/CreateTaskDialog'
+import { DeleteTaskDialog } from '@/features/tasks/DeleteTaskDialog'
+import { EditTaskDialog } from '@/features/tasks/EditTaskDialog'
 import { TaskCard } from '@/features/tasks/TaskCard'
 import { TaskFilters } from '@/features/tasks/TaskFilters'
 import { TaskPagination } from '@/features/tasks/TaskPagination'
@@ -45,8 +48,18 @@ function EmptyState({ filtered, onClear }) {
 export function TasksPage() {
   const [filters, setFilters] = useState(INITIAL_FILTERS)
   const [createOpen, setCreateOpen] = useState(false)
-  const [createdTask, setCreatedTask] = useState(null)
+  // The latest action result: { kind: 'created' | 'updated' | 'deleted', title }.
+  const [notice, setNotice] = useState(null)
+  const [editingTask, setEditingTask] = useState(null)
+  const [deletingTask, setDeletingTask] = useState(null)
+  const { data: currentUser } = useSession()
   const { data, isPending, isError, isFetching, isPlaceholderData, refetch } = useTasks(filters)
+
+  // Safety net: if the current page no longer exists (e.g. tasks were deleted elsewhere), go to the last one.
+  // React allows adjusting state while rendering when it is guarded like this; no effect is needed.
+  if (data && !isPlaceholderData && data.tasks.length === 0 && filters.page > 1) {
+    setFilters((current) => ({ ...current, page: Math.max(1, data.pagination.totalPages) }))
+  }
 
   // Changing a filter always returns to page 1, since the old page number may not exist any more.
   const changeFilters = (changes) => setFilters((current) => ({ ...current, ...changes, page: 1 }))
@@ -58,8 +71,27 @@ export function TasksPage() {
   const isViewNarrowed = hasFilters || filters.page > 1
   const showNewestTasks = () => {
     setFilters(INITIAL_FILTERS)
-    setCreatedTask(null)
+    setNotice(null)
   }
+
+  function handleDeleted(task) {
+    setDeletingTask(null)
+    setNotice({ kind: 'deleted', title: task.title })
+    // Deleting the only task on the last page would leave an empty page, so step back one page.
+    if (data?.tasks.length === 1 && filters.page > 1) changePage(filters.page - 1)
+  }
+
+  // Backend authorization is authoritative; these only decide which actions to offer.
+  // Creators may edit and delete. Assignees may change only the status and cannot delete.
+  const actionsFor = (task) => {
+    const isCreator = task.creator?.id === currentUser?.id
+    const isAssignee = task.assignee?.id === currentUser?.id
+    return {
+      onEdit: isCreator || isAssignee ? () => setEditingTask(task) : undefined,
+      onDelete: isCreator ? () => setDeletingTask(task) : undefined,
+    }
+  }
+  const editingAsAssigneeOnly = editingTask ? editingTask.creator?.id !== currentUser?.id : false
 
   return (
     <div className="flex flex-col gap-6">
@@ -74,20 +106,20 @@ export function TasksPage() {
         </Button>
       </div>
 
-      {createdTask && (
+      {notice && (
         <Alert role="status">
           <CheckCircle2 aria-hidden="true" />
           <AlertDescription className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <span>
-              Task “{createdTask.title}” was created.
-              {isViewNarrowed && ' It may not appear in the current view.'}
+              Task “{notice.title}” was {notice.kind}.
+              {notice.kind === 'created' && isViewNarrowed && ' It may not appear in the current view.'}
             </span>
-            {isViewNarrowed && (
+            {notice.kind === 'created' && isViewNarrowed && (
               <Button variant="outline" size="sm" onClick={showNewestTasks}>
                 Show newest tasks
               </Button>
             )}
-            <Button variant="ghost" size="sm" onClick={() => setCreatedTask(null)}>
+            <Button variant="ghost" size="sm" onClick={() => setNotice(null)}>
               Dismiss
             </Button>
           </AlertDescription>
@@ -98,10 +130,22 @@ export function TasksPage() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         onCreated={(task) => {
-          setCreatedTask(task)
+          setNotice({ kind: 'created', title: task.title })
           setCreateOpen(false)
         }}
       />
+
+      <EditTaskDialog
+        task={editingTask}
+        statusOnly={editingAsAssigneeOnly}
+        onClose={() => setEditingTask(null)}
+        onUpdated={(task) => {
+          setNotice({ kind: 'updated', title: task.title })
+          setEditingTask(null)
+        }}
+      />
+
+      <DeleteTaskDialog task={deletingTask} onClose={() => setDeletingTask(null)} onDeleted={handleDeleted} />
 
       <TaskFilters filters={filters} onChange={changeFilters} onClear={clearFilters} />
 
@@ -121,14 +165,14 @@ export function TasksPage() {
           </div>
         )}
 
-        {data && data.tasks.length === 0 && <EmptyState filtered={hasFilters} onClear={clearFilters} />}
+        {data && data.tasks.length === 0 && filters.page === 1 && <EmptyState filtered={hasFilters} onClear={clearFilters} />}
 
         {data && data.tasks.length > 0 && (
           <>
             <ul className={isPlaceholderData ? 'flex flex-col gap-3 opacity-60' : 'flex flex-col gap-3'}>
               {data.tasks.map((task) => (
                 <li key={task.id}>
-                  <TaskCard task={task} />
+                  <TaskCard task={task} {...actionsFor(task)} />
                 </li>
               ))}
             </ul>

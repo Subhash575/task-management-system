@@ -1,3 +1,4 @@
+import { ApiError } from '@/lib/api'
 import { TASK_PRIORITIES, TASK_STATUSES } from './tasks'
 
 // Limits mirror server/src/validation/task.schemas.js.
@@ -53,4 +54,51 @@ export function buildCreatePayload(values) {
     labels: parseLabels(values.labels),
     dueDate: values.dueDate || null, // <input type="date"> gives "YYYY-MM-DD", which the API accepts
   }
+}
+
+/** Form values for editing: the due date is shown as the UTC calendar day, as the API stores it. */
+export function taskToFormValues(task) {
+  return {
+    title: task.title,
+    description: task.description ?? '',
+    status: task.status,
+    priority: task.priority,
+    labels: task.labels.join(', '),
+    dueDate: task.dueDate ? task.dueDate.slice(0, 10) : '',
+  }
+}
+
+/**
+ * The PATCH body: only fields that actually changed, so an untouched field (or one the user may not edit)
+ * is never re-sent. `statusOnly` is for assignees, who may only change the status. Never includes creator or assignee.
+ */
+export function buildUpdatePayload(task, values, { statusOnly = false } = {}) {
+  const changes = {}
+  if (values.status !== task.status) changes.status = values.status
+  if (statusOnly) return changes
+
+  const full = buildCreatePayload(values)
+  if (full.title !== task.title) changes.title = full.title
+  if (full.description !== (task.description ?? '')) changes.description = full.description
+  if (full.priority !== task.priority) changes.priority = full.priority
+  if (JSON.stringify(full.labels) !== JSON.stringify(task.labels)) changes.labels = full.labels
+  if (full.dueDate !== (task.dueDate ? task.dueDate.slice(0, 10) : null)) changes.dueDate = full.dueDate
+  return changes
+}
+
+
+/** Server messages for 4xx are safe to show; anything else gets a generic message. */
+export function describeError(error) {
+  if (error instanceof ApiError && error.status < 500) return error.message
+  if (error instanceof ApiError) return 'Something went wrong on our side. Please try again.'
+  return 'Could not reach the server. Check your connection and try again.'
+}
+
+/** Splits an API error into `{ fieldErrors, formError }`: field messages go next to the field, the rest in an alert. */
+export function splitServerError(error) {
+  const fieldErrors = {}
+  for (const detail of error.details ?? []) {
+    if (FORM_FIELDS.includes(detail.path) && !fieldErrors[detail.path]) fieldErrors[detail.path] = detail.message
+  }
+  return { fieldErrors, formError: Object.keys(fieldErrors).length === 0 ? describeError(error) : null }
 }
