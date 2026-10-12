@@ -1,5 +1,29 @@
 import { Link, Outlet } from 'react-router'
-import { KanbanSquare } from 'lucide-react'
+import { KanbanSquare, Loader2, LogOut } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { useLogout, useSession } from '@/features/auth/auth'
+
+function UserMenu() {
+  const { data: user } = useSession()
+  const logout = useLogout()
+
+  if (!user) return null
+
+  return (
+    <div className="ml-auto flex items-center gap-2 sm:gap-3">
+      {logout.isError && (
+        <span role="alert" className="text-sm text-destructive">
+          Could not sign out. Try again.
+        </span>
+      )}
+      <span className="hidden max-w-40 truncate text-sm text-muted-foreground sm:inline">{user.name}</span>
+      <Button variant="outline" size="sm" onClick={() => logout.mutate()} disabled={logout.isPending}>
+        {logout.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <LogOut aria-hidden="true" />}
+        Sign out
+      </Button>
+    </div>
+  )
+}
 
 export function AppLayout() {
   return (
@@ -21,6 +45,7 @@ export function AppLayout() {
             <KanbanSquare className="size-5" aria-hidden="true" />
             <span>TaskFlow</span>
           </Link>
+          <UserMenu />
         </div>
       </header>
 

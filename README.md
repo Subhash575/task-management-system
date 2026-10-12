@@ -2,7 +2,7 @@
 
 A MERN-stack (MongoDB, Express, React, Node.js) task manager with a Kanban board, built incrementally.
 
-> **Status:** scaffold + backend authentication API. Frontend auth pages, tasks, Kanban, attachments, and the dashboard are not implemented yet.
+> **Status:** scaffold, backend authentication API, and frontend authentication (login, register, session restore, protected routes, logout). Tasks, Kanban, attachments, and the dashboard are not implemented yet.
 
 ## Project structure
 
