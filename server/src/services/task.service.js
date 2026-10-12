@@ -1,4 +1,5 @@
-import { Task } from '../models/Task.js';
+import mongoose from 'mongoose';
+import { TASK_STATUSES, Task } from '../models/Task.js';
 import { TaskStatusChange } from '../models/TaskStatusChange.js';
 import { User } from '../models/User.js';
 import { AppError } from '../utils/AppError.js';
@@ -90,4 +91,26 @@ export async function deleteTask(user, taskId) {
   await task.deleteOne();
   await TaskStatusChange.deleteMany({ task: task._id }); // its history goes with it
   await deleteAttachmentsForTask(task._id); // and its files
+}
+
+/**
+ * Counts of the tasks the user can see, in total and per status. The database does the counting
+ * (one grouped query), so tasks are never loaded into memory. A task that the user both created
+ * and is assigned to matches the filter once, so it is counted once.
+ */
+export async function getTaskStats(user) {
+  // Aggregation pipelines don't convert strings to ObjectIds the way find() does.
+  const userId = new mongoose.Types.ObjectId(user.id);
+  const groups = await Task.aggregate([
+    { $match: visibleTo(userId) },
+    { $group: { _id: '$status', count: { $sum: 1 } } },
+  ]);
+
+  const byStatus = Object.fromEntries(TASK_STATUSES.map((status) => [status, 0]));
+  for (const { _id: status, count } of groups) {
+    if (status in byStatus) byStatus[status] = count;
+  }
+  const total = Object.values(byStatus).reduce((sum, count) => sum + count, 0);
+
+  return { total, byStatus };
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AlertCircle, CheckCircle2, Plus, RefreshCw } from 'lucide-react'
-import { NavLink } from 'react-router'
+import { NavLink, useSearchParams } from 'react-router'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -13,7 +13,7 @@ import { TaskCard } from '@/features/tasks/TaskCard'
 import { TaskEmptyState } from '@/features/tasks/TaskEmptyState'
 import { TaskFilters } from '@/features/tasks/TaskFilters'
 import { TaskPagination } from '@/features/tasks/TaskPagination'
-import { INITIAL_FILTERS, useTasks } from '@/features/tasks/tasks'
+import { INITIAL_FILTERS, TASK_STATUSES, useTasks } from '@/features/tasks/tasks'
 
 function TaskListSkeleton() {
   return (
@@ -32,7 +32,12 @@ function TaskListSkeleton() {
 /** `view` is "list" (the default, at /) or "board" (the Kanban board, at /board). */
 export function TasksPage({ view = 'list' }) {
   const isBoard = view === 'board'
-  const [filters, setFilters] = useState(INITIAL_FILTERS)
+  // The dashboard links here with ?status=..., which pre-selects the status filter (unknown values are ignored).
+  const [searchParams] = useSearchParams()
+  const [filters, setFilters] = useState(() => {
+    const status = searchParams.get('status')
+    return TASK_STATUSES.includes(status) ? { ...INITIAL_FILTERS, status } : INITIAL_FILTERS
+  })
   const [createOpen, setCreateOpen] = useState(false)
   // The latest action result: { kind: 'created' | 'updated' | 'deleted', title }.
   const [notice, setNotice] = useState(null)

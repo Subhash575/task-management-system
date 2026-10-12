@@ -1,7 +1,28 @@
-import { Link, Outlet } from 'react-router'
+import { Link, NavLink, Outlet } from 'react-router'
 import { KanbanSquare, Loader2, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useLogout, useSession } from '@/features/auth/auth'
+
+function MainNav() {
+  const { data: user } = useSession()
+  if (!user) return null
+
+  const linkClass = ({ isActive }) =>
+    `rounded-md px-2 py-1 text-sm font-medium focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none ${
+      isActive ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:text-foreground'
+    }`
+
+  return (
+    <nav aria-label="Main" className="ml-4 flex items-center gap-1">
+      <NavLink to="/dashboard" className={linkClass}>
+        Dashboard
+      </NavLink>
+      <NavLink to="/" end className={linkClass}>
+        Tasks
+      </NavLink>
+    </nav>
+  )
+}
 
 function UserMenu() {
   const { data: user } = useSession()
@@ -45,6 +66,7 @@ export function AppLayout() {
             <KanbanSquare className="size-5" aria-hidden="true" />
             <span>TaskFlow</span>
           </Link>
+          <MainNav />
           <UserMenu />
         </div>
       </header>

@@ -26,3 +26,8 @@ export async function deleteTask(req, res) {
   await taskService.deleteTask(req.user, req.validated.params.id);
   res.status(204).end();
 }
+
+export async function getTaskStats(req, res) {
+  const stats = await taskService.getTaskStats(req.user);
+  res.status(200).json({ stats });
+}

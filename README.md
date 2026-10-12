@@ -141,6 +141,7 @@ All task endpoints require a signed-in user (`401` otherwise).
 | ------ | ---------------- | ----------- |
 | POST   | `/api/tasks`     | Create a task → `201 { task }`. The creator is always the signed-in user |
 | GET    | `/api/tasks`     | List visible tasks → `200 { tasks, pagination: { page, limit, total, totalPages } }`, newest first |
+| GET    | `/api/tasks/stats` | Dashboard numbers → `200 { stats: { total, byStatus: { Idea, "To Do", "In Progress", "In Review", "Completed" } } }`. Counts the tasks you can see (created or assigned), each once, grouped in the database. Every status key is always present, `0` when empty |
 | GET    | `/api/tasks/:id` | Get one task → `200 { task }`, where `task.statusHistory` lists status changes oldest first as `{ id, from, to, changedAt, changedBy: { id, name, email } }` |
 | PATCH  | `/api/tasks/:id` | Update fields (at least one) → `200 { task }` |
 | DELETE | `/api/tasks/:id` | Delete a task → `204` |
