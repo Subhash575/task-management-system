@@ -6,16 +6,16 @@ import { jsonResponse, renderRoute, stubApi, testUser } from '@/test/renderWithP
 
 const signedOut = () => jsonResponse({ error: { message: 'Authentication required' } }, 401)
 const signedIn = () => jsonResponse({ user: testUser })
-const health = () => jsonResponse({ status: 'ok', db: 'connected' })
+const emptyTasks = () => jsonResponse({ tasks: [], pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } })
 
 describe('session restoration and route protection', () => {
   it('shows a loading state, then restores the session from /auth/me', async () => {
-    const fetchMock = stubApi({ 'GET /auth/me': signedIn, 'GET /health': health })
+    const fetchMock = stubApi({ 'GET /auth/me': signedIn, 'GET /tasks': emptyTasks })
 
     renderRoute('/')
 
     expect(screen.getByRole('status')).toHaveTextContent('Checking your session')
-    expect(await screen.findByRole('heading', { name: 'TaskFlow' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Tasks' })).toBeInTheDocument()
     expect(screen.getByText('Ada Lovelace')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/auth/me', expect.objectContaining({ credentials: 'include' }))
   })
@@ -30,19 +30,19 @@ describe('session restoration and route protection', () => {
   })
 
   it('redirects a signed-in user away from /login', async () => {
-    stubApi({ 'GET /auth/me': signedIn, 'GET /health': health })
+    stubApi({ 'GET /auth/me': signedIn, 'GET /tasks': emptyTasks })
 
     renderRoute('/login')
 
-    expect(await screen.findByRole('heading', { name: 'TaskFlow' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Tasks' })).toBeInTheDocument()
   })
 
   it('redirects a signed-in user away from /register', async () => {
-    stubApi({ 'GET /auth/me': signedIn, 'GET /health': health })
+    stubApi({ 'GET /auth/me': signedIn, 'GET /tasks': emptyTasks })
 
     renderRoute('/register')
 
-    expect(await screen.findByRole('heading', { name: 'TaskFlow' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Tasks' })).toBeInTheDocument()
   })
 
   it('shows an error with retry when the session check fails (not a 401)', async () => {
@@ -53,7 +53,7 @@ describe('session restoration and route protection', () => {
         if (calls === 1) throw new TypeError('Failed to fetch')
         return signedIn()
       },
-      'GET /health': health,
+      'GET /tasks': emptyTasks,
     })
     const user = userEvent.setup()
 
@@ -61,7 +61,7 @@ describe('session restoration and route protection', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not check your session')
     await user.click(screen.getByRole('button', { name: /try again/i }))
-    expect(await screen.findByRole('heading', { name: 'TaskFlow' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Tasks' })).toBeInTheDocument()
   })
 })
 
@@ -83,7 +83,7 @@ describe('login', () => {
     const fetchMock = stubApi({
       'GET /auth/me': signedOut,
       'POST /auth/login': () => jsonResponse({ user: testUser }),
-      'GET /health': health,
+      'GET /tasks': emptyTasks,
     })
     const user = userEvent.setup()
     renderRoute('/login')
@@ -92,7 +92,7 @@ describe('login', () => {
     await user.type(screen.getByLabelText('Password'), 'secret-pass')
     await user.click(screen.getByRole('button', { name: 'Sign in' }))
 
-    expect(await screen.findByRole('heading', { name: 'TaskFlow' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Tasks' })).toBeInTheDocument()
     const loginCall = fetchMock.mock.calls.find(([url]) => url === '/api/auth/login')
     expect(loginCall[1]).toMatchObject({ method: 'POST', credentials: 'include' })
     expect(JSON.parse(loginCall[1].body)).toEqual({ email: 'ada@example.com', password: 'secret-pass' })
@@ -164,7 +164,7 @@ describe('registration', () => {
     const fetchMock = stubApi({
       'GET /auth/me': signedOut,
       'POST /auth/register': () => jsonResponse({ user: testUser }, 201),
-      'GET /health': health,
+      'GET /tasks': emptyTasks,
     })
     const user = userEvent.setup()
     renderRoute('/register')
@@ -172,7 +172,7 @@ describe('registration', () => {
     await fillForm(user)
     await user.click(screen.getByRole('button', { name: 'Create account' }))
 
-    expect(await screen.findByRole('heading', { name: 'TaskFlow' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Tasks' })).toBeInTheDocument()
     const call = fetchMock.mock.calls.find(([url]) => url === '/api/auth/register')
     expect(JSON.parse(call[1].body)).toEqual({
       name: 'Ada Lovelace',
@@ -235,7 +235,7 @@ describe('logout', () => {
   it('calls POST /auth/logout and returns to the login page', async () => {
     const fetchMock = stubApi({
       'GET /auth/me': signedIn,
-      'GET /health': health,
+      'GET /tasks': emptyTasks,
       'POST /auth/logout': () => new Response(null, { status: 204 }),
     })
     const user = userEvent.setup()
@@ -255,7 +255,7 @@ describe('logout', () => {
   it('stays signed in and shows an error when logout fails', async () => {
     stubApi({
       'GET /auth/me': signedIn,
-      'GET /health': health,
+      'GET /tasks': emptyTasks,
       'POST /auth/logout': () => jsonResponse({ error: { message: 'Internal server error' } }, 500),
     })
     const user = userEvent.setup()
@@ -264,7 +264,7 @@ describe('logout', () => {
     await user.click(await screen.findByRole('button', { name: /sign out/i }))
 
     expect(await screen.findByText('Could not sign out. Try again.')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'TaskFlow' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Tasks' })).toBeInTheDocument()
   })
 })
 

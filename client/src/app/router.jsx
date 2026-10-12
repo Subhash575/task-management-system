@@ -1,10 +1,10 @@
 import { createBrowserRouter } from 'react-router'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { GuestRoute, ProtectedRoute } from '@/features/auth/AuthGuards'
-import { HomePage } from '@/pages/HomePage'
+import { TasksPage } from '@/pages/TasksPage'
 import { LoginPage } from '@/pages/LoginPage'
-import { NotFoundPage } from '@/pages/NotFoundPage'
 import { RegisterPage } from '@/pages/RegisterPage'
+import { NotFoundPage } from '@/pages/NotFoundPage'
 
 export const routes = [
   {
@@ -21,7 +21,7 @@ export const routes = [
       // Signed-in only: signed-out users are redirected to /login.
       {
         element: <ProtectedRoute />,
-        children: [{ index: true, element: <HomePage /> }],
+        children: [{ index: true, element: <TasksPage /> }],
       },
       { path: '*', element: <NotFoundPage /> },
     ],

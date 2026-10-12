@@ -30,15 +30,15 @@ export const testUser = { id: 'u1', name: 'Ada Lovelace', email: 'ada@example.co
 
 /**
  * Stubs `global.fetch` with one handler per "METHOD /path" (path without the /api prefix).
- * A handler returns a Response (or throws to simulate a network failure). Unknown routes fail loudly.
+ * A handler receives (options, url) and returns a Response (or throws to simulate a network failure). Unknown routes fail loudly.
  * Returns the fetch mock so tests can assert on calls.
  */
 export function stubApi(handlers) {
   const fetchMock = vi.fn(async (url, options = {}) => {
     const key = `${options.method ?? 'GET'} ${String(url).replace(/^\/api/, '')}`
-    const handler = handlers[key]
+    const handler = handlers[key] ?? handlers[key.split('?')[0]] // a handler may omit the query string
     if (!handler) throw new Error(`Unexpected request: ${key}`)
-    return handler(options)
+    return handler(options, String(url))
   })
   vi.stubGlobal('fetch', fetchMock)
   return fetchMock
