@@ -15,8 +15,8 @@ export function createApp() {
   const app = express();
 
   app.disable('x-powered-by');
-  // Trust the first proxy (Docker/nginx/load balancer) so req.ip and secure cookies work.
-  app.set('trust proxy', 1);
+  // Trust this many proxies in front of the API (see TRUST_PROXY_HOPS in config/env.js) so req.ip is the real client.
+  app.set('trust proxy', env.TRUST_PROXY_HOPS);
 
   app.use(helmet());
   app.use(

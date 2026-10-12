@@ -429,3 +429,25 @@ describe('delete', () => {
     expect(getStorage().objects.size).toBe(0);
   });
 });
+
+describe('upload rate limit', () => {
+  it('limits uploads per signed-in user (30 per hour) with a 429 in the standard error shape', async () => {
+    const { ada, taskId } = await setup();
+
+    // Attempts count whether or not they succeed (the per-task cap rejects most of these with a 400).
+    for (let i = 0; i < 30; i += 1) {
+      expect((await upload(ada.agent, taskId)).status).not.toBe(429);
+    }
+    const blocked = await upload(ada.agent, taskId);
+
+    expect(blocked.status).toBe(429);
+    expect(blocked.body).toEqual({ error: { message: 'Too many uploads. Please try again later.' } });
+  });
+
+  it('counts each user separately', async () => {
+    const { ada, bob, taskId } = await setup();
+    for (let i = 0; i < 31; i += 1) await upload(ada.agent, taskId);
+
+    expect((await upload(bob.agent, taskId)).status).not.toBe(429);
+  });
+});

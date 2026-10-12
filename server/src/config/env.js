@@ -17,12 +17,20 @@ const DEV_PLACEHOLDER_SECRET = 'dev-only-insecure-jwt-secret-do-not-use-in-produ
 const emptyToUndefined = (schema) => z.preprocess((value) => (value === '' ? undefined : value), schema);
 
 const baseSchema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  // Required, with no default: a forgotten NODE_ENV on a host must fail loudly instead of silently running as
+  // "development" (which would turn off Secure cookies and show stack traces).
+  NODE_ENV: z.enum(['development', 'test', 'production'], {
+    error: 'NODE_ENV is required and must be development, test or production',
+  }),
   PORT: z.coerce.number().int().positive().default(5000),
   MONGODB_URI: z
     .string({ error: 'MONGODB_URI is required (copy server/.env.example to server/.env)' })
     .min(1, 'MONGODB_URI is required'),
   CLIENT_URL: z.url().default('http://localhost:5173'),
+  // How many reverse proxies sit in front of the API. Express uses it to find the real client IP (for rate
+  // limiting and logs). 1 = a single proxy such as Render's load balancer. With the Vercel /api rewrite there are
+  // two (Vercel, then Render), so set 2; too low makes every visitor share Vercel's IP, too high lets clients fake theirs.
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(1),
   // Optional comma-separated DNS server IPs, e.g. "8.8.8.8,1.1.1.1". Only needed when the
   // machine's DNS cannot resolve the SRV records used by mongodb+srv:// URIs.
   DNS_SERVERS: z

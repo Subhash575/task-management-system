@@ -41,6 +41,27 @@ describe('environment validation', () => {
     expect(output).not.toContain('too-short-secret-value');
   });
 
+  // Not "undefined": a missing NODE_ENV would make env.js load the developer's real .env, so use a wrong value.
+  it('refuses an invalid NODE_ENV instead of falling back to development', async () => {
+    vi.stubEnv('NODE_ENV', 'staging');
+
+    expect(await loadEnvExpectingFailure()).toContain('NODE_ENV is required');
+  });
+
+  it('defaults TRUST_PROXY_HOPS to 1 and accepts 2 (Vercel rewrite + Render)', async () => {
+    vi.stubEnv('TRUST_PROXY_HOPS', undefined);
+    expect((await loadEnv()).TRUST_PROXY_HOPS).toBe(1);
+
+    vi.stubEnv('TRUST_PROXY_HOPS', '2');
+    expect((await loadEnv()).TRUST_PROXY_HOPS).toBe(2);
+  });
+
+  it.each(['-1', '1.5', 'many', '99'])('rejects an invalid TRUST_PROXY_HOPS of "%s"', async (value) => {
+    vi.stubEnv('TRUST_PROXY_HOPS', value);
+
+    expect(await loadEnvExpectingFailure()).toContain('TRUST_PROXY_HOPS');
+  });
+
   it('refuses the public compose.yaml placeholder secret in production', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('JWT_SECRET', 'dev-only-insecure-jwt-secret-do-not-use-in-production');

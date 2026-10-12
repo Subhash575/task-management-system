@@ -90,8 +90,9 @@ Each app has a `.env.example` file. Copy it to `.env` (server) or `.env.local` (
 
 | Variable           | App    | Description |
 | ------------------ | ------ | ----------- |
-| `NODE_ENV`         | server | `development`, `test`, or `production` |
+| `NODE_ENV`         | server | **Required, no default:** `development`, `test`, or `production`. Set `production` on the host. |
 | `PORT`             | server | API port (default `5000`) |
+| `TRUST_PROXY_HOPS` | server | How many reverse proxies are in front of the API (default `1`). Use `2` with the Vercel `/api` rewrite. See Deploying. |
 | `MONGODB_URI`      | server | MongoDB connection string (**required**) |
 | `CLIENT_URL`       | server | Frontend origin allowed by CORS |
 | `DNS_SERVERS`      | server | Optional, comma-separated DNS IPs (e.g. `8.8.8.8,1.1.1.1`). See the troubleshooting section below. |
@@ -106,6 +107,20 @@ Each app has a `.env.example` file. Copy it to `.env` (server) or `.env.local` (
 | `API_PROXY_TARGET` | client | Dev-server-only proxy target (default `http://localhost:5000`) |
 
 The API validates its environment with Zod at startup. If a variable is missing or invalid, it exits with a clear message.
+
+## Deploying (Vercel client + Render API)
+
+The session cookie is `HttpOnly`, `Secure` (in production) and `SameSite=Lax`. Browsers do not send a `Lax` cookie on requests from one site to another (`*.vercel.app` to `*.onrender.com`), so the browser must only ever talk to the **Vercel** origin. `client/vercel.json` does this: it forwards `/api/*` to Render on the server side (so the browser sees one site) and serves `index.html` for deep links such as `/board`.
+
+1. **Edit `client/vercel.json`:** replace `REPLACE-WITH-YOUR-RENDER-SERVICE` with your Render service name. Leave `VITE_API_URL` unset in Vercel so the client calls `/api`.
+2. **Render environment variables** (Settings, never in Git): `NODE_ENV=production`, `TRUST_PROXY_HOPS=2` (Vercel, then Render), `MONGODB_URI`, `JWT_SECRET` (new random value, 32+ characters), `CLIENT_URL` (your Vercel URL), `STORAGE_DRIVER=s3` plus the `S3_*` values. Optional: `JWT_EXPIRES_IN=1d` for shorter sessions.
+3. **Use separate production resources.** Create a new Atlas database user and database name, and a new private R2 bucket with an access key limited to that bucket, just for production. Do not reuse the credentials you use while developing; use the local Docker MongoDB (`docker compose up -d mongo`) and `STORAGE_DRIVER=local` for development.
+4. **Atlas Network Access:** allow the Render service to connect (Render's outbound addresses, or `0.0.0.0/0` for a demo, protected by the database user's password).
+5. **After the first deploy, check:** sign in on the Vercel URL; refresh `/board`; upload a file close to 5 MB (confirms the rewrite accepts it); in browser dev tools confirm the cookie is `HttpOnly; Secure; SameSite=Lax`; and fail a login from two different networks (for example Wi-Fi and phone data) to confirm each gets its own `RateLimit` counter. If every network shares one counter, `TRUST_PROXY_HOPS` is too low.
+
+Rate limits: auth routes (10 failed logins / 10 registrations per 15 min per IP), uploads (30 per hour per user), and everything else under `/api` (600 per 15 min per IP; `/api/health` is exempt).
+
+Known trade-off: any signed-in user can list registered users' names and emails (needed for the assignee picker), and registration is open.
 
 ## Troubleshooting
 
