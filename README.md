@@ -2,7 +2,7 @@
 
 A MERN-stack (MongoDB, Express, React, Node.js) task manager with a Kanban board, built incrementally.
 
-> **Status:** scaffold, backend authentication API, and frontend authentication (login, register, session restore, protected routes, logout). Tasks, Kanban, attachments, and the dashboard are not implemented yet.
+> **Status:** scaffold, backend authentication API, and frontend authentication (login, register, session restore, protected routes, logout), and the backend task API. Task pages in the UI, Kanban, attachments, and the dashboard are not implemented yet.
 
 ## Project structure
 
@@ -128,6 +128,23 @@ Alternatively, use the Atlas *standard* (`mongodb://host1,host2,host3/...`) conn
 `user` is always `{ id, name, email, createdAt, updatedAt }`. Password hashes and tokens are never returned in a response body.
 
 Errors always use the shape `{ "error": { "message": "...", "details": [...]? } }`. Validation errors (`400`) include `details: [{ path, message }]`, one entry per invalid field.
+
+### Tasks
+
+All task endpoints require a signed-in user (`401` otherwise).
+
+| Method | Path             | Description |
+| ------ | ---------------- | ----------- |
+| POST   | `/api/tasks`     | Create a task → `201 { task }`. The creator is always the signed-in user |
+| GET    | `/api/tasks`     | List visible tasks → `200 { tasks, pagination: { page, limit, total, totalPages } }`, newest first |
+| GET    | `/api/tasks/:id` | Get one task → `200 { task }` |
+| PATCH  | `/api/tasks/:id` | Update fields (at least one) → `200 { task }` |
+| DELETE | `/api/tasks/:id` | Delete a task → `204` |
+
+- **Fields:** `title` (required, ≤200), `description` (≤5000), `status` (`Idea`, `To Do`, `In Progress`, `In Review`, `Completed`; default `To Do`), `priority` (`Low`, `Medium`, `High`, `Critical`; default `Medium`), `assignee` (user id or `null`), `labels` (≤10, each ≤30 chars, de-duplicated), `dueDate` (`YYYY-MM-DD` or ISO timestamp, or `null`). A date-only value is stored as midnight UTC.
+- **List query:** `page` (default 1), `limit` (default 20, max 100), `status`, `priority`, and `scope=created` (created by me) or `scope=assigned` (assigned to me).
+- **Who can do what:** you can see a task only if you created it or it is assigned to you. Anything else returns `404`, the same as a task that doesn't exist. The creator can edit and delete. An assignee can change only `status` (other fields return `403`) and cannot delete (`403`). The assignee must be an existing user (`400` otherwise). `creator` can't be changed.
+- `creator` and `assignee` come back as `{ id, name, email }`.
 
 ### How sessions work
 
