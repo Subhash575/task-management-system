@@ -30,5 +30,6 @@ export default defineConfig({
     globals: true,
     setupFiles: './src/test/setup.js',
     css: false,
+    testTimeout: 15_000, // form tests type character by character, which is slow when files run in parallel
   },
 })

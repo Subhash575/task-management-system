@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api'
 
 // Must match the server's allowed values (server/src/models/Task.js).
@@ -35,5 +35,18 @@ export function useTasks(filters) {
     queryKey: taskKeys.list(filters),
     queryFn: ({ signal }) => fetchTasks(filters, signal),
     placeholderData: keepPreviousData,
+  })
+}
+
+export function createTask(body) {
+  return apiRequest('/tasks', { method: 'POST', body })
+}
+
+/** Creates a task, then refreshes every cached task list so the new task shows up. */
+export function useCreateTask() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: createTask,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: taskKeys.all }),
   })
 }

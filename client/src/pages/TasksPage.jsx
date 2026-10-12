@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { AlertCircle, ClipboardList, Plus, RefreshCw } from 'lucide-react'
+import { AlertCircle, CheckCircle2, ClipboardList, Plus, RefreshCw } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { CreateTaskDialog } from '@/features/tasks/CreateTaskDialog'
 import { TaskCard } from '@/features/tasks/TaskCard'
 import { TaskFilters } from '@/features/tasks/TaskFilters'
 import { TaskPagination } from '@/features/tasks/TaskPagination'
@@ -43,7 +44,8 @@ function EmptyState({ filtered, onClear }) {
 
 export function TasksPage() {
   const [filters, setFilters] = useState(INITIAL_FILTERS)
-  const [showCreateNotice, setShowCreateNotice] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [createdTask, setCreatedTask] = useState(null)
   const { data, isPending, isError, isFetching, isPlaceholderData, refetch } = useTasks(filters)
 
   // Changing a filter always returns to page 1, since the old page number may not exist any more.
@@ -52,6 +54,12 @@ export function TasksPage() {
   const changePage = (page) => setFilters((current) => ({ ...current, page }))
 
   const hasFilters = Boolean(filters.status || filters.priority || filters.scope)
+  // New tasks are listed newest first, so they show on page 1 of an unfiltered list.
+  const isViewNarrowed = hasFilters || filters.page > 1
+  const showNewestTasks = () => {
+    setFilters(INITIAL_FILTERS)
+    setCreatedTask(null)
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -60,18 +68,40 @@ export function TasksPage() {
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Tasks</h1>
           <p className="text-muted-foreground">Tasks you created or that are assigned to you.</p>
         </div>
-        {/* Integration point: the create-task form will replace this notice in the next milestone. */}
-        <Button onClick={() => setShowCreateNotice(true)} aria-expanded={showCreateNotice}>
+        <Button onClick={() => setCreateOpen(true)}>
           <Plus aria-hidden="true" />
           Create Task
         </Button>
       </div>
 
-      {showCreateNotice && (
+      {createdTask && (
         <Alert role="status">
-          <AlertDescription>Creating tasks is coming in the next step. This button is a placeholder for now.</AlertDescription>
+          <CheckCircle2 aria-hidden="true" />
+          <AlertDescription className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span>
+              Task “{createdTask.title}” was created.
+              {isViewNarrowed && ' It may not appear in the current view.'}
+            </span>
+            {isViewNarrowed && (
+              <Button variant="outline" size="sm" onClick={showNewestTasks}>
+                Show newest tasks
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={() => setCreatedTask(null)}>
+              Dismiss
+            </Button>
+          </AlertDescription>
         </Alert>
       )}
+
+      <CreateTaskDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreated={(task) => {
+          setCreatedTask(task)
+          setCreateOpen(false)
+        }}
+      />
 
       <TaskFilters filters={filters} onChange={changeFilters} onClear={clearFilters} />
 

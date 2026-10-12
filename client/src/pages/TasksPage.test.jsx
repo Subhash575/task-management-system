@@ -75,16 +75,6 @@ describe('TasksPage', () => {
     expect(within(card).queryByRole('list', { name: 'Labels' })).not.toBeInTheDocument()
   })
 
-  it('has a Create Task action that is only a placeholder for now', async () => {
-    stubApi({ 'GET /auth/me': signedIn, 'GET /tasks': () => page([makeTask()]) })
-    const user = userEvent.setup()
-    renderRoute('/')
-
-    await user.click(await screen.findByRole('button', { name: 'Create Task' }))
-
-    expect(screen.getByRole('status')).toHaveTextContent('coming in the next step')
-  })
-
   it('shows an empty state when the user has no tasks', async () => {
     stubApi({ 'GET /auth/me': signedIn, 'GET /tasks': () => page([], { total: 0, totalPages: 0 }) })
 
