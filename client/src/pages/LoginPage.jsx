@@ -4,7 +4,7 @@ import { Link } from 'react-router'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useLogin } from '@/features/auth/auth'
-import { AuthCard } from '@/features/auth/AuthCard'
+import { AuthCard, authLinkClass, authSubmitClass } from '@/features/auth/AuthCard'
 import { FormField } from '@/features/auth/FormField'
 import { fieldErrorsFromApiError, validateLogin } from '@/features/auth/validation'
 
@@ -35,18 +35,18 @@ export function LoginPage() {
 
   return (
     <AuthCard
-      title="Sign in"
-      description="Welcome back. Enter your details to continue."
+      title="Welcome back"
+      description="Sign in to continue to your workspace."
       footer={
         <p>
           New here?{' '}
-          <Link to="/register" className="font-medium text-foreground underline underline-offset-4">
+          <Link to="/register" className={authLinkClass}>
             Create an account
           </Link>
         </p>
       }
     >
-      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
         {formError && (
           <Alert variant="destructive">
             <AlertCircle aria-hidden="true" />
@@ -56,6 +56,7 @@ export function LoginPage() {
         <FormField
           label="Email"
           type="email"
+          placeholder="you@example.com"
           autoComplete="email"
           value={values.email}
           onChange={update('email')}
@@ -69,7 +70,7 @@ export function LoginPage() {
           onChange={update('password')}
           error={errors.password}
         />
-        <Button type="submit" disabled={login.isPending}>
+        <Button type="submit" className={authSubmitClass} disabled={login.isPending}>
           {login.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
           {login.isPending ? 'Signing in…' : 'Sign in'}
         </Button>

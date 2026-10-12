@@ -25,7 +25,7 @@ describe('session restoration and route protection', () => {
 
     renderRoute('/')
 
-    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Welcome back' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /sign out/i })).not.toBeInTheDocument()
   })
 
@@ -66,6 +66,23 @@ describe('session restoration and route protection', () => {
 })
 
 describe('login', () => {
+  it('toggles password visibility without losing the typed value', async () => {
+    stubApi({ 'GET /auth/me': signedOut })
+    const user = userEvent.setup()
+    renderRoute('/login')
+
+    const password = await screen.findByLabelText('Password')
+    await user.type(password, 'secret-pass')
+    expect(password).toHaveAttribute('type', 'password')
+
+    await user.click(screen.getByRole('button', { name: 'Show password' }))
+    expect(password).toHaveAttribute('type', 'text')
+    expect(password).toHaveValue('secret-pass')
+
+    await user.click(screen.getByRole('button', { name: 'Hide password' }))
+    expect(password).toHaveAttribute('type', 'password')
+  })
+
   it('validates fields on the client without calling the login API', async () => {
     const fetchMock = stubApi({ 'GET /auth/me': signedOut })
     const user = userEvent.setup()
@@ -111,7 +128,7 @@ describe('login', () => {
     await user.click(screen.getByRole('button', { name: 'Sign in' }))
 
     expect(await screen.findByText('Invalid email or password')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeInTheDocument()
   })
 
   it('shows an error when the network is down and re-enables the button', async () => {
@@ -136,7 +153,7 @@ describe('login', () => {
 describe('registration', () => {
   async function fillForm(user, overrides = {}) {
     const values = {
-      Name: 'Ada Lovelace',
+      'Full name': 'Ada Lovelace',
       Email: 'ada@example.com',
       Password: 'secret-pass',
       'Confirm password': 'secret-pass',
@@ -213,7 +230,7 @@ describe('registration', () => {
     await user.click(screen.getByRole('button', { name: 'Create account' }))
 
     expect(await screen.findByText('Name is required')).toBeInTheDocument()
-    expect(screen.getByLabelText('Name')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText('Full name')).toHaveAttribute('aria-invalid', 'true')
   })
 
   it('shows rate-limit errors in an alert', async () => {
@@ -243,7 +260,7 @@ describe('logout', () => {
 
     await user.click(await screen.findByRole('button', { name: /sign out/i }))
 
-    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Welcome back' })).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/auth/logout',
       expect.objectContaining({ method: 'POST', credentials: 'include' }),
