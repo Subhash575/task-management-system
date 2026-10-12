@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { ZodError } from 'zod';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/AppError.js';
 
@@ -8,6 +9,18 @@ import { AppError } from '../utils/AppError.js';
  */
 function normalizeError(err) {
   if (err instanceof AppError) return err;
+
+  // Request validation (middleware/validate.js). Messages come from our own schemas.
+  if (err instanceof ZodError) {
+    const details = err.issues.map((issue) => ({ path: issue.path.join('.'), message: issue.message }));
+    return new AppError(400, 'Validation failed', details);
+  }
+
+  // MongoDB unique index violation. Only the field name is reported, never the value.
+  if (err?.code === 11000) {
+    const field = Object.keys(err.keyPattern ?? err.keyValue ?? {})[0] ?? 'value';
+    return new AppError(409, `${field.charAt(0).toUpperCase()}${field.slice(1)} is already in use`);
+  }
 
   if (err instanceof mongoose.Error.ValidationError) {
     const details = Object.values(err.errors).map((e) => ({ path: e.path, message: e.message }));

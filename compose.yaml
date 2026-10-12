@@ -25,6 +25,11 @@ services:
       PORT: 5000
       MONGODB_URI: mongodb://mongo:27017/task-management
       CLIENT_URL: http://localhost:5173
+      # DEVELOPMENT ONLY. A public placeholder so the local stack starts out of the box.
+      # Anyone can read it, so it must never be used for a deployed or shared environment.
+      JWT_SECRET: dev-only-insecure-jwt-secret-do-not-use-in-production
+      JWT_EXPIRES_IN: 7d
+      COOKIE_NAME: taskflow_session
     ports:
       - "127.0.0.1:5000:5000"
     depends_on:

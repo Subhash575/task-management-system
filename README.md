@@ -2,7 +2,7 @@
 
 A MERN-stack (MongoDB, Express, React, Node.js) task manager with a Kanban board, built incrementally.
 
-> **Status:** project scaffold only. Auth, tasks, Kanban, attachments, and the dashboard are not implemented yet.
+> **Status:** scaffold + backend authentication API. Frontend auth pages, tasks, Kanban, attachments, and the dashboard are not implemented yet.
 
 ## Project structure
 
@@ -18,10 +18,13 @@ A MERN-stack (MongoDB, Express, React, Node.js) task manager with a Kanban board
 ├── server/          Express + Mongoose API
 │   ├── src/
 │   │   ├── config/      env (Zod-validated) and database connection
-│   │   ├── controllers/ request handlers
-│   │   ├── middleware/  404 + centralized error handler
+│   │   ├── controllers/ request handlers (thin: read input, call a service, send a response)
+│   │   ├── middleware/  error handler, 404, validate, requireAuth, rate limiting
+│   │   ├── models/      Mongoose models
 │   │   ├── routes/      route definitions, mounted under /api
-│   │   ├── utils/       AppError, helpers
+│   │   ├── services/    business logic
+│   │   ├── utils/       AppError, password hashing, JWT, auth cookie helpers
+│   │   ├── validation/  Zod request schemas
 │   │   ├── app.js       builds the Express app (used by tests)
 │   │   └── server.js    entry point: connects DB, listens, graceful shutdown
 │   └── tests/       Supertest + Vitest API tests
@@ -55,6 +58,8 @@ docker compose up -d mongo
 # 2. API (terminal 1)
 cd server
 cp .env.example .env
+# Set JWT_SECRET in .env. Generate a value with:
+node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 npm install
 npm run dev
 
@@ -90,6 +95,9 @@ Each app has a `.env.example` file. Copy it to `.env` (server) or `.env.local` (
 | `MONGODB_URI`      | server | MongoDB connection string (**required**) |
 | `CLIENT_URL`       | server | Frontend origin allowed by CORS |
 | `DNS_SERVERS`      | server | Optional, comma-separated DNS IPs (e.g. `8.8.8.8,1.1.1.1`). See the troubleshooting section below. |
+| `JWT_SECRET`       | server | **Required.** At least 32 random characters; signs session tokens. There is no default. `compose.yaml` contains a public, development-only placeholder. |
+| `JWT_EXPIRES_IN`   | server | Session lifetime as a number plus `s`/`m`/`h`/`d` (default `7d`). Sets both the token expiry and the cookie `Max-Age`. |
+| `COOKIE_NAME`      | server | Name of the HTTP-only session cookie (default `taskflow_session`) |
 | `VITE_API_URL`     | client | API base URL used by the browser (default `/api`). Public, so no secrets. |
 | `API_PROXY_TARGET` | client | Dev-server-only proxy target (default `http://localhost:5000`) |
 
@@ -109,8 +117,22 @@ Alternatively, use the Atlas *standard* (`mongodb://host1,host2,host3/...`) conn
 
 ## API
 
-| Method | Path          | Description |
-| ------ | ------------- | ----------- |
-| GET    | `/api/health` | `200 { status: "ok", db: "connected" }`, or `503` when the database is down |
+| Method | Path                 | Auth | Description |
+| ------ | -------------------- | ---- | ----------- |
+| GET    | `/api/health`        | –    | `200 { status: "ok", db: "connected" }`, or `503` when the database is down |
+| POST   | `/api/auth/register` | –    | Body `{ name, email, password, confirmPassword }` → `201 { user }` and sets the session cookie. `400` invalid input, `409` email already in use |
+| POST   | `/api/auth/login`    | –    | Body `{ email, password }` → `200 { user }` and sets the session cookie. `401 Invalid email or password` |
+| POST   | `/api/auth/logout`   | –    | Clears the session cookie → `204` |
+| GET    | `/api/auth/me`       | ✔    | `200 { user }`, or `401` if the cookie is missing, invalid, or expired, or the user was deleted |
 
-Errors always use the shape `{ "error": { "message": "...", "details": [...]? } }`.
+`user` is always `{ id, name, email, createdAt, updatedAt }`. Password hashes and tokens are never returned in a response body.
+
+Errors always use the shape `{ "error": { "message": "...", "details": [...]? } }`. Validation errors (`400`) include `details: [{ path, message }]`, one entry per invalid field.
+
+### How sessions work
+
+- On register or login, the API signs a JWT (HS256, `sub` = user id) and stores it in an **HTTP-only** cookie (`SameSite=Lax`, plus `Secure` in production). Browser JavaScript can't read it, and the browser sends it automatically.
+- `requireAuth` middleware verifies the token, loads the user from MongoDB, and sets `req.user`. Identity always comes from the token, never from ids sent by the client.
+- Passwords are hashed with bcrypt (cost 12). Max length is 72 bytes, because bcrypt ignores anything after that.
+- Login and register are rate-limited per IP: 10 failed logins and 10 registrations per 15 minutes. Exceeding the limit returns `429`.
+- Logout clears the cookie. Tokens are stateless, so a copied token stays valid until it expires. Server-side revocation can be added later if needed.

@@ -1,8 +1,9 @@
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import { env } from './config/env.js';
-import apiRoutes from './routes/index.js';
+import { createApiRouter } from './routes/index.js';
 import { notFound } from './middleware/notFound.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
@@ -21,12 +22,13 @@ export function createApp() {
   app.use(
     cors({
       origin: env.CLIENT_URL,
-      credentials: true, // allow the browser to send our auth cookie (added in the auth task)
+      credentials: true, // allow the browser to send our auth cookie
     }),
   );
   app.use(express.json({ limit: '1mb' }));
+  app.use(cookieParser()); // fills req.cookies; must run before any route that reads the session
 
-  app.use('/api', apiRoutes);
+  app.use('/api', createApiRouter());
 
   app.use(notFound);
   app.use(errorHandler);
