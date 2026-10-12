@@ -27,4 +27,13 @@ describe('main navigation', () => {
     expect(within(nav).getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page')
     expect(within(nav).getByRole('link', { name: 'Tasks' })).not.toHaveAttribute('aria-current')
   })
+
+  it('keeps the header pinned with a solid background, so scrolled content never shows through it', async () => {
+    stubApi({ 'GET /auth/me': () => jsonResponse({ user: testUser }), 'GET /tasks': emptyList })
+    renderRoute('/')
+
+    const header = (await screen.findByRole('navigation', { name: 'Main' })).closest('header')
+    expect(header).toHaveClass('sticky', 'top-0', 'bg-background')
+    expect(header.className).not.toMatch(/bg-background\//) // no opacity suffix (no see-through)
+  })
 })

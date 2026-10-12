@@ -115,6 +115,10 @@
 }
 
 @layer base {
+  /* The sticky header is 3.5rem tall plus its 1px border. Keeps anchor jumps and keyboard focus from landing under it. */
+  html {
+    scroll-padding-top: calc(3.5rem + 1px);
+  }
   * {
     @apply border-border outline-ring/50;
     }

@@ -95,7 +95,7 @@ export function AppLayout() {
         Skip to main content
       </a>
 
-      <header className="sticky top-0 z-40 border-b bg-background/95 supports-[backdrop-filter]:bg-background/80">
+      <header className="sticky top-0 z-40 border-b bg-background">
         <div className="mx-auto flex h-14 w-full max-w-6xl items-center px-4 sm:px-6">
           <Link
             to="/"

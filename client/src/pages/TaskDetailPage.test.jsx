@@ -150,7 +150,7 @@ describe('task detail page', () => {
     })
     renderRoute('/tasks/t1')
 
-    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Welcome back' })).toBeInTheDocument()
   })
 
   it.each([

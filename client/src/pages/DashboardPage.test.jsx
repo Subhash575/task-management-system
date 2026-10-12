@@ -84,7 +84,7 @@ describe('dashboard', () => {
     stubApi({ 'GET /auth/me': () => jsonResponse({ error: { message: 'Authentication required' } }, 401) })
     renderRoute('/dashboard')
 
-    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Welcome back' })).toBeInTheDocument()
   })
 })
 
@@ -188,7 +188,7 @@ describe('dashboard navigation', () => {
     stubApi({ 'GET /auth/me': () => jsonResponse({ error: { message: 'Authentication required' } }, 401) })
     renderRoute('/login')
 
-    await screen.findByRole('heading', { name: 'Sign in' })
+    await screen.findByRole('heading', { name: 'Welcome back' })
     expect(screen.queryByRole('navigation', { name: 'Main' })).not.toBeInTheDocument()
   })
 })
