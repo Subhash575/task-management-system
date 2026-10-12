@@ -13,6 +13,9 @@ const DURATION_UNITS_MS = { s: 1_000, m: 60_000, h: 3_600_000, d: 86_400_000 };
 // The public placeholder from compose.yaml. Fine for local Docker, fatal in production.
 const DEV_PLACEHOLDER_SECRET = 'dev-only-insecure-jwt-secret-do-not-use-in-production';
 
+/** Treats an empty string (a blank line in .env) as if the variable was not set. */
+const emptyToUndefined = (schema) => z.preprocess((value) => (value === '' ? undefined : value), schema);
+
 const baseSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(5000),
@@ -49,15 +52,43 @@ const baseSchema = z.object({
     .string()
     .regex(/^[A-Za-z0-9_-]+$/, 'COOKIE_NAME may only contain letters, numbers, "_" and "-"')
     .default('taskflow_session'),
+
+  // Where uploaded attachments are stored. "s3" (any S3-compatible bucket: AWS S3, Cloudflare R2, MinIO)
+  // is the only driver allowed in production. "local" writes to UPLOAD_DIR for development.
+  // "memory" keeps files in RAM and exists for automated tests.
+  STORAGE_DRIVER: z.enum(['local', 's3', 'memory']).default('local'),
+  UPLOAD_DIR: z.string().trim().min(1).default('uploads'),
+  // An empty value in .env counts as "not set".
+  S3_BUCKET: emptyToUndefined(z.string().trim().min(1).optional()),
+  S3_REGION: emptyToUndefined(z.string().trim().min(1).optional()),
+  S3_ENDPOINT: emptyToUndefined(z.url().optional()), // only for non-AWS providers such as R2 or MinIO
+  S3_ACCESS_KEY_ID: emptyToUndefined(z.string().trim().min(1).optional()),
+  S3_SECRET_ACCESS_KEY: emptyToUndefined(z.string().trim().min(1).optional()),
+  S3_FORCE_PATH_STYLE: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
 });
 
-const envSchema = baseSchema.refine(
-  (data) => !(data.NODE_ENV === 'production' && data.JWT_SECRET === DEV_PLACEHOLDER_SECRET),
-  {
-    path: ['JWT_SECRET'],
-    message: 'JWT_SECRET is the public development placeholder and must not be used in production',
-  },
-);
+const envSchema = baseSchema
+  .refine(
+    (data) => !(data.NODE_ENV === 'production' && data.JWT_SECRET === DEV_PLACEHOLDER_SECRET),
+    {
+      path: ['JWT_SECRET'],
+      message: 'JWT_SECRET is the public development placeholder and must not be used in production',
+    },
+  )
+  // Production must use durable object storage; local disk and memory are not durable on most hosts.
+  .refine((data) => !(data.NODE_ENV === 'production' && data.STORAGE_DRIVER !== 's3'), {
+    path: ['STORAGE_DRIVER'],
+    message: 'STORAGE_DRIVER must be "s3" in production (local disk is not durable)',
+  })
+  .superRefine((data, ctx) => {
+    if (data.STORAGE_DRIVER !== 's3') return;
+    for (const name of ['S3_BUCKET', 'S3_REGION', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY']) {
+      if (!data[name]) ctx.addIssue({ code: 'custom', path: [name], message: `${name} is required when STORAGE_DRIVER is "s3"` });
+    }
+  });
 
 const parsed = envSchema.safeParse(process.env);
 

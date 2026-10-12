@@ -6,7 +6,9 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PriorityBadge, StatusBadge } from '@/features/tasks/TaskBadges'
 import { dateTimeFormat } from '@/features/tasks/dateFormat'
+import { TaskAttachments } from '@/features/tasks/TaskAttachments'
 import { TaskStatusHistory } from '@/features/tasks/TaskStatusHistory'
+import { useSession } from '@/features/auth/auth'
 import { useTask } from '@/features/tasks/tasks'
 
 // Date-only due dates are stored as midnight UTC, so format in UTC (same as the list and board).
@@ -44,6 +46,7 @@ function Detail({ label, children }) {
 export function TaskDetailPage() {
   const { id } = useParams()
   const location = useLocation()
+  const { data: currentUser } = useSession()
   const { data: task, isPending, isError, error, isFetching, refetch } = useTask(id)
 
   // Cards link here with the page they came from (list, board, or filtered views).
@@ -141,6 +144,15 @@ export function TaskDetailPage() {
                 <time dateTime={task.updatedAt}>{dateTimeFormat.format(new Date(task.updatedAt))}</time>
               </Detail>
             </dl>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <h2 className="leading-none font-semibold">Attachments</h2>
+          </CardHeader>
+          <CardContent>
+            <TaskAttachments task={task} currentUserId={currentUser?.id} />
           </CardContent>
         </Card>
 

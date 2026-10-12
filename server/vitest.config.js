@@ -16,6 +16,7 @@ export default defineConfig({
       JWT_SECRET: 'test-only-jwt-secret-that-is-at-least-32-characters',
       JWT_EXPIRES_IN: '7d',
       COOKIE_NAME: 'taskflow_session',
+      STORAGE_DRIVER: 'memory',
     },
   },
 });

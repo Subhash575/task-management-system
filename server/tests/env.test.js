@@ -87,4 +87,58 @@ describe('environment validation', () => {
 
     expect((await loadEnv()).JWT_EXPIRES_IN_MS).toBe(ms);
   });
+
+  describe('file storage settings', () => {
+    const s3Settings = {
+      STORAGE_DRIVER: 's3',
+      S3_BUCKET: 'my-bucket',
+      S3_REGION: 'eu-west-1',
+      S3_ACCESS_KEY_ID: 'AKIAEXAMPLE',
+      S3_SECRET_ACCESS_KEY: 'super-secret-value-123',
+    };
+    const stubAll = (settings) => Object.entries(settings).forEach(([key, value]) => vi.stubEnv(key, value));
+
+    it('refuses local or in-memory storage in production', async () => {
+      vi.stubEnv('NODE_ENV', 'production');
+      vi.stubEnv('STORAGE_DRIVER', 'local');
+
+      expect(await loadEnvExpectingFailure()).toContain('STORAGE_DRIVER must be "s3" in production');
+    });
+
+    it('requires the bucket settings for s3, naming the missing variables but never printing secret values', async () => {
+      stubAll({ ...s3Settings, S3_BUCKET: '', S3_SECRET_ACCESS_KEY: undefined });
+
+      const output = await loadEnvExpectingFailure();
+
+      expect(output).toContain('S3_BUCKET is required');
+      expect(output).toContain('S3_SECRET_ACCESS_KEY is required');
+      expect(output).not.toContain('AKIAEXAMPLE');
+    });
+
+    it('accepts complete s3 settings and treats blank optional values as unset', async () => {
+      stubAll({ ...s3Settings, S3_ENDPOINT: '', S3_FORCE_PATH_STYLE: 'true' });
+
+      const env = await loadEnv();
+
+      expect(env.STORAGE_DRIVER).toBe('s3');
+      expect(env.S3_ENDPOINT).toBeUndefined();
+      expect(env.S3_FORCE_PATH_STYLE).toBe(true);
+    });
+
+    it('rejects an S3_ENDPOINT that is not a URL', async () => {
+      stubAll({ ...s3Settings, S3_ENDPOINT: 'not a url' });
+
+      expect(await loadEnvExpectingFailure()).toContain('S3_ENDPOINT');
+    });
+
+    it('defaults to local storage in the uploads folder', async () => {
+      vi.stubEnv('STORAGE_DRIVER', undefined);
+      vi.stubEnv('UPLOAD_DIR', undefined);
+
+      const env = await loadEnv();
+
+      expect(env.STORAGE_DRIVER).toBe('local');
+      expect(env.UPLOAD_DIR).toBe('uploads');
+    });
+  });
 });

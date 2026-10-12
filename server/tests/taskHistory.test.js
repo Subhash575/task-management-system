@@ -48,8 +48,8 @@ describe('GET /api/tasks/:id — detail response', () => {
       statusHistory: [],
     });
     expect(Object.keys(res.body.task.creator).sort()).toEqual(['email', 'id', 'name']);
-    // Attachments are not part of the model yet.
-    expect(res.body.task).not.toHaveProperty('attachments');
+    // Attachments are listed on the detail response (empty here).
+    expect(res.body.task.attachments).toEqual([]);
     const raw = JSON.stringify(res.body);
     expect(raw).not.toContain('passwordHash');
     expect(raw).not.toMatch(/\$2[aby]\$/);

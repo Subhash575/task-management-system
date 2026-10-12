@@ -2,26 +2,13 @@ import { Task } from '../models/Task.js';
 import { TaskStatusChange } from '../models/TaskStatusChange.js';
 import { User } from '../models/User.js';
 import { AppError } from '../utils/AppError.js';
+import { deleteAttachmentsForTask, listAttachmentsForTask } from './attachment.service.js';
+import { USER_SUMMARY, findVisibleTask, visibleTo } from './taskAccess.js';
 
-// Only expose what collaborators need to see about the other person.
-const USER_SUMMARY = 'name email';
 const populateUsers = [
   { path: 'creator', select: USER_SUMMARY },
   { path: 'assignee', select: USER_SUMMARY },
 ];
-
-/** A user can see a task they created or that is assigned to them, and nothing else. */
-const visibleTo = (userId) => ({ $or: [{ creator: userId }, { assignee: userId }] });
-
-/**
- * Loads a task the user may see. Tasks the user may not see are reported as "not found",
- * exactly like missing ones, so ids cannot be probed to learn which tasks exist.
- */
-async function findVisibleTask(taskId, userId) {
-  const task = await Task.findOne({ _id: taskId, ...visibleTo(userId) });
-  if (!task) throw new AppError(404, 'Task not found');
-  return task;
-}
 
 async function assertAssigneeExists(assigneeId) {
   if (assigneeId && !(await User.exists({ _id: assigneeId }))) {
@@ -53,7 +40,7 @@ export async function listTasks(user, { page, limit, status, priority, scope }) 
   return { tasks, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
 }
 
-/** The task plus its status history, oldest change first. */
+/** The task plus its status history (oldest change first) and its attachments (oldest first). */
 export async function getTask(user, taskId) {
   const task = await findVisibleTask(taskId, user.id);
   await task.populate(populateUsers);
@@ -62,7 +49,11 @@ export async function getTask(user, taskId) {
     .sort({ changedAt: 1, _id: 1 })
     .populate({ path: 'changedBy', select: USER_SUMMARY });
 
-  return { ...task.toJSON(), statusHistory: changes.map((change) => change.toJSON()) };
+  return {
+    ...task.toJSON(),
+    statusHistory: changes.map((change) => change.toJSON()),
+    attachments: await listAttachmentsForTask(task._id),
+  };
 }
 
 export async function updateTask(user, taskId, changes) {
@@ -98,4 +89,5 @@ export async function deleteTask(user, taskId) {
   }
   await task.deleteOne();
   await TaskStatusChange.deleteMany({ task: task._id }); // its history goes with it
+  await deleteAttachmentsForTask(task._id); // and its files
 }

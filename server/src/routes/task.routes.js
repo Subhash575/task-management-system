@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { createTask, deleteTask, getTask, listTasks, updateTask } from '../controllers/task.controller.js';
+import { createAttachmentRouter } from './attachment.routes.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { validate } from '../middleware/validate.js';
 import {
@@ -20,6 +21,8 @@ export function createTaskRouter() {
   router.get('/:id', validate({ params: taskIdParamsSchema }), getTask);
   router.patch('/:id', validate({ params: taskIdParamsSchema, body: updateTaskSchema }), updateTask);
   router.delete('/:id', validate({ params: taskIdParamsSchema }), deleteTask);
+
+  router.use('/:id/attachments', createAttachmentRouter());
 
   return router;
 }

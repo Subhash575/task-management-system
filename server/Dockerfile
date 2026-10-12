@@ -10,7 +10,8 @@ RUN npm ci
 COPY . .
 
 # Run as the unprivileged "node" user that ships with the official image.
-RUN chown -R node:node /app
+# Folder for local-development uploads (a named volume in compose.yaml keeps them between restarts).
+RUN mkdir -p /app/uploads && chown -R node:node /app
 USER node
 
 EXPOSE 5000

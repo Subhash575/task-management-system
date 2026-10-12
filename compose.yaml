@@ -30,8 +30,13 @@ services:
       JWT_SECRET: dev-only-insecure-jwt-secret-do-not-use-in-production
       JWT_EXPIRES_IN: 7d
       COOKIE_NAME: taskflow_session
+      # Attachments are stored on disk in development. Production must use STORAGE_DRIVER=s3 (see README).
+      STORAGE_DRIVER: local
+      UPLOAD_DIR: /app/uploads
     ports:
       - "127.0.0.1:5000:5000"
+    volumes:
+      - uploads-data:/app/uploads
     depends_on:
       mongo:
         condition: service_healthy
@@ -68,3 +73,4 @@ services:
 
 volumes:
   mongo-data:
+  uploads-data:

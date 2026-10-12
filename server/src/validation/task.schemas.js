@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { TASK_PRIORITIES, TASK_STATUSES } from '../models/Task.js';
 
-const objectId = z.string({ error: 'Id is required' }).regex(/^[a-f\d]{24}$/i, 'Invalid id');
+export const objectId = z.string({ error: 'Id is required' }).regex(/^[a-f\d]{24}$/i, 'Invalid id');
 
 const title = z
   .string({ error: 'Title is required' })
