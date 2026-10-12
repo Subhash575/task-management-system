@@ -181,6 +181,7 @@ export function TasksPage({ view = 'list' }) {
           filters={{ priority: filters.priority, scope: filters.scope }}
           hasFilters={Boolean(filters.priority || filters.scope)}
           onClearFilters={clearFilters}
+          onCreate={() => setCreateOpen(true)}
         />
       )}
 

@@ -2,25 +2,7 @@ import { Link, useLocation } from 'react-router'
 import { AlertTriangle, CalendarDays, Pencil, Trash2, User, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PriorityBadge, StatusBadge } from './TaskBadges'
-
-// Date-only due dates are stored as midnight UTC, so format in UTC to avoid showing the previous day.
-const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeZone: 'UTC' })
-
-/** Today as a calendar date in the user's own time zone, "YYYY-MM-DD". */
-function localToday() {
-  const now = new Date()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  return `${now.getFullYear()}-${month}-${day}`
-}
-
-/**
- * A due date is a calendar day, so a task is overdue once that day is before today, unless it is already completed.
- * Comparing "YYYY-MM-DD" strings avoids any time-of-day or time-zone guesswork.
- */
-function isOverdue(task) {
-  return Boolean(task.dueDate) && task.status !== 'Completed' && task.dueDate.slice(0, 10) < localToday()
-}
+import { dueDateFormat, isOverdue } from './taskMeta'
 
 /** `onEdit` / `onDelete` are only passed for actions the user is expected to be allowed to do. */
 export function TaskCard({ task, onEdit, onDelete }) {
@@ -91,7 +73,7 @@ export function TaskCard({ task, onEdit, onDelete }) {
                 overdue ? 'font-semibold text-red-700 dark:text-red-400' : 'font-medium text-slate-800 dark:text-slate-100'
               }
             >
-              <time dateTime={task.dueDate}>{dateFormat.format(new Date(task.dueDate))}</time>
+              <time dateTime={task.dueDate}>{dueDateFormat.format(new Date(task.dueDate))}</time>
             </dd>
             {/* Text, not just colour, so the warning doesn't rely on seeing red. */}
             {overdue && (

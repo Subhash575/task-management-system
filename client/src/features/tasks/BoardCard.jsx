@@ -1,12 +1,10 @@
 import { useDraggable } from '@dnd-kit/core'
-import { CalendarDays, GripVertical, Loader2, UserRound } from 'lucide-react'
+import { AlertTriangle, CalendarDays, GripVertical, Loader2, UserRound } from 'lucide-react'
 import { Link, useLocation } from 'react-router'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { PriorityBadge } from './TaskBadges'
+import { dueDateFormat, isOverdue } from './taskMeta'
 import { TASK_STATUSES } from './tasks'
-
-// Date-only due dates are stored as midnight UTC, so format in UTC (same as the list view).
-const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeZone: 'UTC' })
 
 /**
  * A compact card for the board. `canMove` is only a UI hint (the server decides); when it is false the card
@@ -19,6 +17,7 @@ export function BoardCard({ task, canMove, isMoving, onMove }) {
     id: task.id,
     disabled: !canMove || isMoving,
   })
+  const overdue = isOverdue(task)
 
   const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined
 
@@ -27,8 +26,10 @@ export function BoardCard({ task, canMove, isMoving, onMove }) {
       ref={setNodeRef}
       style={style}
       aria-busy={isMoving || undefined}
-      className={`relative flex flex-col gap-2 rounded-lg border bg-card p-3 text-card-foreground shadow-xs ${
-        isDragging ? 'z-20 shadow-lg ring-2 ring-ring' : ''
+      className={`relative flex flex-col gap-2.5 rounded-lg border bg-card p-3 text-card-foreground shadow-xs transition-[border-color,box-shadow] focus-within:border-indigo-300 motion-reduce:transition-none ${
+        isDragging
+          ? 'z-20 border-indigo-400 shadow-lg ring-2 ring-indigo-500/40'
+          : 'hover:border-indigo-200 hover:shadow-sm'
       } ${isMoving ? 'opacity-60' : ''}`}
     >
       <div className="flex items-start gap-2">
@@ -40,17 +41,17 @@ export function BoardCard({ task, canMove, isMoving, onMove }) {
             {...attributes}
             disabled={isMoving}
             aria-label={`Drag task: ${task.title}`}
-            className="-ml-1 touch-none rounded p-0.5 text-muted-foreground hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none disabled:opacity-50"
+            className="-ml-1 cursor-grab touch-none rounded p-0.5 text-slate-400 outline-none hover:bg-slate-100 hover:text-slate-700 focus-visible:ring-[3px] focus-visible:ring-indigo-500/50 active:cursor-grabbing disabled:opacity-50 dark:hover:bg-slate-800"
           >
             <GripVertical className="size-4" aria-hidden="true" />
           </button>
         )}
-        <h3 className="min-w-0 flex-1 text-sm leading-snug font-medium break-words">
+        <h3 className="min-w-0 flex-1 text-sm leading-snug font-semibold break-words text-slate-900 dark:text-foreground">
           {/* Only the drag handle starts a drag, so this link still works normally. */}
           <Link
             to={`/tasks/${task.id}`}
             state={{ from: location.pathname + location.search }}
-            className="rounded-sm hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="rounded-sm underline-offset-4 outline-none hover:text-indigo-700 hover:underline focus-visible:ring-[3px] focus-visible:ring-indigo-500/50 dark:hover:text-indigo-300"
           >
             {task.title}
           </Link>
@@ -60,15 +61,37 @@ export function BoardCard({ task, canMove, isMoving, onMove }) {
 
       <div className="flex flex-wrap items-center gap-2">
         <PriorityBadge priority={task.priority} />
+        {overdue && (
+          <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-1.5 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950 dark:text-red-300">
+            <AlertTriangle className="size-3" aria-hidden="true" />
+            Overdue
+          </span>
+        )}
       </div>
 
-      <dl className="flex flex-col gap-1 text-xs text-muted-foreground">
-        <div className="flex items-center gap-1.5">
+      {task.labels.length > 0 && (
+        <ul aria-label="Labels" className="flex flex-wrap gap-1">
+          {task.labels.map((label) => (
+            <li
+              key={label}
+              title={label}
+              className="max-w-full truncate rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+            >
+              {label}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <dl className="flex flex-col gap-1 text-xs text-slate-500 dark:text-slate-400">
+        <div className="flex min-w-0 items-center gap-1.5">
           <dt className="flex items-center gap-1">
             <UserRound className="size-3.5" aria-hidden="true" />
             <span className="sr-only">Assignee</span>
           </dt>
-          <dd className="text-foreground">{task.assignee?.name ?? 'Unassigned'}</dd>
+          <dd className="min-w-0 truncate font-medium text-slate-800 dark:text-slate-100">
+            {task.assignee?.name ?? 'Unassigned'}
+          </dd>
         </div>
         {task.dueDate && (
           <div className="flex items-center gap-1.5">
@@ -76,8 +99,12 @@ export function BoardCard({ task, canMove, isMoving, onMove }) {
               <CalendarDays className="size-3.5" aria-hidden="true" />
               <span className="sr-only">Due</span>
             </dt>
-            <dd className="text-foreground">
-              <time dateTime={task.dueDate}>{dateFormat.format(new Date(task.dueDate))}</time>
+            <dd
+              className={
+                overdue ? 'font-semibold text-red-700 dark:text-red-400' : 'font-medium text-slate-800 dark:text-slate-100'
+              }
+            >
+              <time dateTime={task.dueDate}>{dueDateFormat.format(new Date(task.dueDate))}</time>
             </dd>
           </div>
         )}

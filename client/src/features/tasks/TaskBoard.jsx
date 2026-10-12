@@ -15,10 +15,10 @@ function BoardSkeleton() {
   return (
     <div role="status" aria-label="Loading board" className="flex gap-3 overflow-hidden">
       {TASK_STATUSES.map((status) => (
-        <div key={status} className="flex w-72 shrink-0 flex-col gap-3 rounded-xl border p-3 sm:w-auto sm:flex-1">
+        <div key={status} className="flex w-72 shrink-0 flex-col gap-3 rounded-xl border bg-slate-50 p-2.5 sm:w-auto sm:flex-1 dark:bg-muted/30">
           <Skeleton className="h-5 w-1/2" />
-          <Skeleton className="h-20 w-full" />
-          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-24 w-full rounded-lg" />
+          <Skeleton className="h-24 w-full rounded-lg" />
         </div>
       ))}
     </div>
@@ -26,7 +26,7 @@ function BoardSkeleton() {
 }
 
 /** `filters` is `{ priority, scope }`. The board shows exactly the tasks the API returns for them. */
-export function TaskBoard({ filters, hasFilters, onClearFilters }) {
+export function TaskBoard({ filters, hasFilters, onClearFilters, onCreate }) {
   const { data, isPending, isError, isFetching, refetch } = useBoardTasks(filters)
   const { data: currentUser } = useSession()
   const moveTask = useMoveTask()
@@ -73,12 +73,12 @@ export function TaskBoard({ filters, hasFilters, onClearFilters }) {
 
   if (isError) {
     return (
-      <div className="flex flex-col items-start gap-3">
-        <p role="alert" className="flex items-center gap-2 text-destructive">
+      <div className="flex flex-col items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-5 dark:border-red-900 dark:bg-red-950/40">
+        <p role="alert" className="flex items-center gap-2 text-sm font-medium text-red-800 dark:text-red-300">
           <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
           Could not load tasks. Check your connection and try again.
         </p>
-        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching} className="bg-white">
           <RefreshCw className={isFetching ? 'animate-spin' : undefined} aria-hidden="true" />
           Try again
         </Button>
@@ -86,7 +86,7 @@ export function TaskBoard({ filters, hasFilters, onClearFilters }) {
     )
   }
 
-  if (data.tasks.length === 0) return <TaskEmptyState filtered={hasFilters} onClear={onClearFilters} />
+  if (data.tasks.length === 0) return <TaskEmptyState filtered={hasFilters} onClear={onClearFilters} onCreate={onCreate} />
 
   const byStatus = Object.fromEntries(TASK_STATUSES.map((status) => [status, []]))
   for (const task of data.tasks) byStatus[task.status]?.push(task)
@@ -123,7 +123,7 @@ export function TaskBoard({ filters, hasFilters, onClearFilters }) {
         <div
           role="group"
           aria-label="Kanban board"
-          className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0"
+          className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-3 sm:mx-0 sm:px-0"
         >
           {TASK_STATUSES.map((status) => (
             <BoardColumn

@@ -428,6 +428,34 @@ describe('board filters and views', () => {
   })
 })
 
+describe('board polish', () => {
+  it('shows labels and marks overdue cards, but not completed, future or undated ones', async () => {
+    boardApi([
+      makeTask({ title: 'Late one', dueDate: '2000-01-01T00:00:00.000Z', labels: ['backend', 'urgent'] }),
+      makeTask({ title: 'Late but done', status: 'Completed', dueDate: '2000-01-01T00:00:00.000Z' }),
+      makeTask({ title: 'Future one', dueDate: '2999-01-01T00:00:00.000Z' }),
+      makeTask({ title: 'No date' }),
+    ])
+    renderRoute('/board')
+
+    await screen.findByRole('heading', { name: 'Late one' })
+    const card = (title) => screen.getByRole('heading', { name: title }).closest('li')
+    expect(within(card('Late one')).getByText('Overdue')).toBeInTheDocument()
+    expect(within(within(card('Late one')).getByRole('list', { name: 'Labels' })).getAllByRole('listitem')).toHaveLength(2)
+    for (const title of ['Late but done', 'Future one', 'No date']) {
+      expect(within(card(title)).queryByText('Overdue')).not.toBeInTheDocument()
+    }
+  })
+
+  it('offers a working Create action from the empty board', async () => {
+    boardApi([])
+    renderRoute('/board')
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Create your first task' }))
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+  })
+})
+
 describe('statusFromDragEnd', () => {
   const tasks = [{ id: 'a', status: 'To Do' }]
 
