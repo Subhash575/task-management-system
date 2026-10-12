@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Environment files (never commit secrets) — keep only the safe examples
+.env
+.env.*
+!.env.example
+
+# Build output
+dist/
+build/
+
+# Test output
+coverage/
+
+# Uploaded files (private user data)
+uploads/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/

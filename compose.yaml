@@ -1,0 +1,65 @@
+# Local development stack: MongoDB + Express API + Vite React client.
+# Start with hot reload:   docker compose up --build --watch
+name: task-management
+
+services:
+  mongo:
+    image: mongo:8
+    restart: unless-stopped
+    # Bound to localhost only, so the unauthenticated dev database is not exposed to your network.
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  server:
+    build: ./server
+    environment:
+      NODE_ENV: development
+      PORT: 5000
+      MONGODB_URI: mongodb://mongo:27017/task-management
+      CLIENT_URL: http://localhost:5173
+    ports:
+      - "127.0.0.1:5000:5000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    # Compose Watch copies changed files into the container (works reliably on Windows/macOS,
+    # unlike bind mounts whose file events often don't reach Linux watchers).
+    develop:
+      watch:
+        - action: sync
+          path: ./server/src
+          target: /app/src
+        - action: rebuild
+          path: ./server/package.json
+
+  client:
+    build: ./client
+    environment:
+      API_PROXY_TARGET: http://server:5000
+    ports:
+      - "127.0.0.1:5173:5173"
+    depends_on:
+      - server
+    develop:
+      watch:
+        - action: sync
+          path: ./client/src
+          target: /app/src
+        - action: sync
+          path: ./client/public
+          target: /app/public
+        - action: rebuild
+          path: ./client/package.json
+        - action: rebuild
+          path: ./client/vite.config.js
+
+volumes:
+  mongo-data:
