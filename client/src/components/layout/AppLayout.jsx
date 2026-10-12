@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet } from 'react-router'
+import { Link, NavLink, Outlet, useMatch } from 'react-router'
 import { KanbanSquare, Loader2, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useLogout, useSession } from '@/features/auth/auth'
@@ -47,8 +47,11 @@ function UserMenu() {
 }
 
 export function AppLayout() {
+  // The dashboard sits on a subtle neutral background so its white cards stand out.
+  const onDashboard = Boolean(useMatch('/dashboard'))
+
   return (
-    <div className="flex min-h-svh flex-col">
+    <div className={`flex min-h-svh flex-col ${onDashboard ? 'bg-slate-50 dark:bg-background' : ''}`}>
       {/* Lets keyboard and screen-reader users jump past the header. */}
       <a
         href="#main-content"

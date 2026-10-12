@@ -50,7 +50,7 @@ describe('dashboard', () => {
 
     expect(await screen.findByRole('heading', { name: 'No tasks yet' })).toBeInTheDocument()
     expect(screen.queryByRole('list', { name: 'Task statistics' })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Go to tasks' })).toHaveAttribute('href', '/')
+    expect(screen.getByRole('link', { name: 'View Tasks' })).toHaveAttribute('href', '/')
   })
 
   it.each([
@@ -74,7 +74,7 @@ describe('dashboard', () => {
     renderRoute('/dashboard')
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not load statistics')
-    await user.click(screen.getByRole('button', { name: /try again/i }))
+    await user.click(screen.getByRole('button', { name: 'Retry' }))
 
     expect(await screen.findByRole('link', { name: /^Idea: 4 tasks/ })).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
@@ -85,6 +85,41 @@ describe('dashboard', () => {
     renderRoute('/dashboard')
 
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+  })
+})
+
+describe('dashboard header and cards', () => {
+  it('has a heading, a subtitle and a View Tasks action that opens the list', async () => {
+    stubApi({ 'GET /auth/me': signedIn, 'GET /tasks/stats': () => statsResponse({ Idea: 1 }), 'GET /tasks': emptyList })
+    const user = userEvent.setup()
+    renderRoute('/dashboard')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument()
+    expect(screen.getByText('Track your tasks and project progress.')).toBeInTheDocument()
+    await user.click(screen.getByRole('link', { name: 'View all tasks' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Tasks' })).toBeInTheDocument()
+  })
+
+  it('labels the total card "Total Tasks" and shows every status label, using real counts', async () => {
+    stubApi({ 'GET /auth/me': signedIn, 'GET /tasks/stats': () => statsResponse({ Idea: 7, Completed: 2 }) })
+    renderRoute('/dashboard')
+
+    const list = await screen.findByRole('list', { name: 'Task statistics' })
+    const text = within(list).getAllByRole('listitem').map((item) => item.textContent)
+    expect(text).toEqual(['Total Tasks9', 'Idea7', 'To Do0', 'In Progress0', 'In Review0', 'Completed2'])
+  })
+
+  it('shows keyboard focus styles on the cards', async () => {
+    stubApi({ 'GET /auth/me': signedIn, 'GET /tasks/stats': () => statsResponse({ Idea: 1 }) })
+    const user = userEvent.setup()
+    renderRoute('/dashboard')
+
+    const card = await screen.findByRole('link', { name: /^All tasks/ })
+    await user.tab() // skip link
+    await user.tab()
+    await user.tab()
+    await user.tab()
+    expect(card.className).toContain('focus-visible:ring-')
   })
 })
 
