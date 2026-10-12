@@ -30,11 +30,12 @@ export function fetchTasks({ page, status, priority, scope }, signal) {
 }
 
 /** Returns `{ tasks, pagination }`. The previous page stays on screen while the next one loads. */
-export function useTasks(filters) {
+export function useTasks(filters, { enabled = true } = {}) {
   return useQuery({
     queryKey: taskKeys.list(filters),
     queryFn: ({ signal }) => fetchTasks(filters, signal),
     placeholderData: keepPreviousData,
+    enabled,
   })
 }
 
@@ -76,5 +77,83 @@ export function useDeleteTask() {
   return useMutation({
     mutationFn: deleteTask,
     onSettled: () => queryClient.invalidateQueries({ queryKey: taskKeys.all }),
+  })
+}
+
+// ---- Kanban board ----
+
+export const BOARD_PAGE_LIMIT = 100 // the API's maximum page size
+export const BOARD_MAX_PAGES = 5 // so the board shows at most 500 tasks
+
+// Nested under taskKeys.all, so creating, editing and deleting tasks refreshes the board too.
+export const boardKeys = {
+  list: (filters) => ['tasks', 'board', filters],
+}
+
+/** The board has no pagination, so it loads every page the API has (up to a cap). Only the API's visible tasks are returned. */
+export async function fetchBoardTasks({ priority, scope }, signal) {
+  const tasks = []
+  let total = 0
+  for (let page = 1; page <= BOARD_MAX_PAGES; page += 1) {
+    const params = new URLSearchParams({ page: String(page), limit: String(BOARD_PAGE_LIMIT) })
+    if (priority) params.set('priority', priority)
+    if (scope) params.set('scope', scope)
+    const data = await apiRequest(`/tasks?${params}`, { signal })
+    tasks.push(...data.tasks)
+    total = data.pagination.total
+    if (page >= data.pagination.totalPages) return { tasks, total, truncated: false }
+  }
+  return { tasks, total, truncated: true }
+}
+
+/** Returns `{ tasks, total, truncated }` for the board. `filters` is `{ priority, scope }`. */
+export function useBoardTasks(filters) {
+  return useQuery({
+    queryKey: boardKeys.list(filters),
+    queryFn: ({ signal }) => fetchBoardTasks(filters, signal),
+  })
+}
+
+/** Sets a task's status in every cached task list and board. With `onlyIfCurrently`, only when it still has that status. */
+function setCachedStatus(queryClient, id, status, onlyIfCurrently) {
+  queryClient.setQueriesData({ queryKey: taskKeys.all }, (old) => {
+    if (!old?.tasks) return old
+    return {
+      ...old,
+      tasks: old.tasks.map((task) =>
+        task.id === id && (!onlyIfCurrently || task.status === onlyIfCurrently) ? { ...task, status } : task,
+      ),
+    }
+  })
+}
+
+/**
+ * Moves a task to another status (PATCH { status } only). Optimistic: the card moves at once, and if the server
+ * rejects the change just that task is put back. The server's data replaces the cache when the request settles.
+ * Variables: `{ id, status, previousStatus }`. Use `mutateAsync` so concurrent moves each get their own result.
+ */
+const moveMutationKey = ['tasks', 'move']
+
+export function useMoveTask() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: moveMutationKey,
+    mutationFn: ({ id, status }) => apiRequest(`/tasks/${id}`, { method: 'PATCH', body: { status } }),
+    onMutate: async ({ id, status }) => {
+      // A refetch that started earlier could land after this and overwrite the optimistic change.
+      await queryClient.cancelQueries({ queryKey: taskKeys.all })
+      setCachedStatus(queryClient, id, status)
+    },
+    onError: (_error, { id, status, previousStatus }) => {
+      // Only undo our own change, so another pending move of the same task is not clobbered.
+      setCachedStatus(queryClient, id, previousStatus, status)
+    },
+    onSettled: () => {
+      // While other moves are still in flight, a refetch would return their old status and undo their optimistic
+      // change. The last move to finish refreshes everything (this one still counts as mutating here).
+      if (queryClient.isMutating({ mutationKey: moveMutationKey }) <= 1) {
+        return queryClient.invalidateQueries({ queryKey: taskKeys.all })
+      }
+    },
   })
 }

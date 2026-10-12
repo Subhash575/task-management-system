@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { AlertCircle, CheckCircle2, ClipboardList, Plus, RefreshCw } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Plus, RefreshCw } from 'lucide-react'
+import { NavLink } from 'react-router'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -7,7 +8,9 @@ import { useSession } from '@/features/auth/auth'
 import { CreateTaskDialog } from '@/features/tasks/CreateTaskDialog'
 import { DeleteTaskDialog } from '@/features/tasks/DeleteTaskDialog'
 import { EditTaskDialog } from '@/features/tasks/EditTaskDialog'
+import { TaskBoard } from '@/features/tasks/TaskBoard'
 import { TaskCard } from '@/features/tasks/TaskCard'
+import { TaskEmptyState } from '@/features/tasks/TaskEmptyState'
 import { TaskFilters } from '@/features/tasks/TaskFilters'
 import { TaskPagination } from '@/features/tasks/TaskPagination'
 import { INITIAL_FILTERS, useTasks } from '@/features/tasks/tasks'
@@ -26,26 +29,9 @@ function TaskListSkeleton() {
   )
 }
 
-function EmptyState({ filtered, onClear }) {
-  return (
-    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed px-4 py-12 text-center">
-      <ClipboardList className="size-8 text-muted-foreground" aria-hidden="true" />
-      <h2 className="text-lg font-semibold">{filtered ? 'No tasks match these filters' : 'No tasks yet'}</h2>
-      <p className="max-w-sm text-sm text-muted-foreground">
-        {filtered
-          ? 'Try changing or clearing the filters to see more tasks.'
-          : 'Tasks you create or that are assigned to you will show up here.'}
-      </p>
-      {filtered && (
-        <Button variant="outline" size="sm" onClick={onClear}>
-          Clear filters
-        </Button>
-      )}
-    </div>
-  )
-}
-
-export function TasksPage() {
+/** `view` is "list" (the default, at /) or "board" (the Kanban board, at /board). */
+export function TasksPage({ view = 'list' }) {
+  const isBoard = view === 'board'
   const [filters, setFilters] = useState(INITIAL_FILTERS)
   const [createOpen, setCreateOpen] = useState(false)
   // The latest action result: { kind: 'created' | 'updated' | 'deleted', title }.
@@ -53,7 +39,7 @@ export function TasksPage() {
   const [editingTask, setEditingTask] = useState(null)
   const [deletingTask, setDeletingTask] = useState(null)
   const { data: currentUser } = useSession()
-  const { data, isPending, isError, isFetching, isPlaceholderData, refetch } = useTasks(filters)
+  const { data, isPending, isError, isFetching, isPlaceholderData, refetch } = useTasks(filters, { enabled: !isBoard })
 
   // Safety net: if the current page no longer exists (e.g. tasks were deleted elsewhere), go to the last one.
   // React allows adjusting state while rendering when it is guarded like this; no effect is needed.
@@ -68,7 +54,8 @@ export function TasksPage() {
 
   const hasFilters = Boolean(filters.status || filters.priority || filters.scope)
   // New tasks are listed newest first, so they show on page 1 of an unfiltered list.
-  const isViewNarrowed = hasFilters || filters.page > 1
+  // The board has no pages and no status filter, so only priority and scope can hide a new task there.
+  const isViewNarrowed = isBoard ? Boolean(filters.priority || filters.scope) : hasFilters || filters.page > 1
   const showNewestTasks = () => {
     setFilters(INITIAL_FILTERS)
     setNotice(null)
@@ -105,6 +92,26 @@ export function TasksPage() {
           Create Task
         </Button>
       </div>
+
+      <nav aria-label="Task views" className="inline-flex w-fit rounded-lg border bg-muted/40 p-1">
+        {[
+          { to: '/', label: 'List', end: true },
+          { to: '/board', label: 'Board' },
+        ].map(({ to, label, end }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={end}
+            className={({ isActive }) =>
+              `rounded-md px-3 py-1 text-sm font-medium focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none ${
+                isActive ? 'bg-background shadow-xs' : 'text-muted-foreground hover:text-foreground'
+              }`
+            }
+          >
+            {label}
+          </NavLink>
+        ))}
+      </nav>
 
       {notice && (
         <Alert role="status">
@@ -147,8 +154,17 @@ export function TasksPage() {
 
       <DeleteTaskDialog task={deletingTask} onClose={() => setDeletingTask(null)} onDeleted={handleDeleted} />
 
-      <TaskFilters filters={filters} onChange={changeFilters} onClear={clearFilters} />
+      <TaskFilters filters={filters} onChange={changeFilters} onClear={clearFilters} hideStatus={isBoard} />
 
+      {isBoard && (
+        <TaskBoard
+          filters={{ priority: filters.priority, scope: filters.scope }}
+          hasFilters={Boolean(filters.priority || filters.scope)}
+          onClearFilters={clearFilters}
+        />
+      )}
+
+      {!isBoard && (
       <section aria-label="Task list" aria-busy={isFetching} className="flex flex-col gap-4">
         {isPending && <TaskListSkeleton />}
 
@@ -165,7 +181,7 @@ export function TasksPage() {
           </div>
         )}
 
-        {data && data.tasks.length === 0 && filters.page === 1 && <EmptyState filtered={hasFilters} onClear={clearFilters} />}
+        {data && data.tasks.length === 0 && filters.page === 1 && <TaskEmptyState filtered={hasFilters} onClear={clearFilters} />}
 
         {data && data.tasks.length > 0 && (
           <>
@@ -180,6 +196,7 @@ export function TasksPage() {
           </>
         )}
       </section>
+      )}
     </div>
   )
 }

@@ -21,7 +21,10 @@ export const routes = [
       // Signed-in only: signed-out users are redirected to /login.
       {
         element: <ProtectedRoute />,
-        children: [{ index: true, element: <TasksPage /> }],
+        children: [
+          { index: true, element: <TasksPage view="list" /> },
+          { path: 'board', element: <TasksPage view="board" /> },
+        ],
       },
       { path: '*', element: <NotFoundPage /> },
     ],

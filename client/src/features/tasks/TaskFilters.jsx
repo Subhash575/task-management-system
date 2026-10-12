@@ -23,23 +23,28 @@ function FilterSelect({ label, value, onChange, allLabel, options }) {
 
 const asOptions = (values) => values.map((value) => ({ value, label: value }))
 
-export function TaskFilters({ filters, onChange, onClear }) {
-  const hasFilters = Boolean(filters.status || filters.priority || filters.scope)
+export function TaskFilters({ filters, onChange, onClear, hideStatus = false }) {
+  // The board is already split by status, so it hides the status filter and ignores it.
+  const hasFilters = Boolean((!hideStatus && filters.status) || filters.priority || filters.scope)
 
   return (
     <form
       role="search"
       aria-label="Filter tasks"
       onSubmit={(event) => event.preventDefault()}
-      className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(3,1fr)_auto] lg:items-end"
+      className={`grid gap-3 sm:grid-cols-2 lg:items-end ${
+        hideStatus ? 'lg:grid-cols-[repeat(2,1fr)_auto]' : 'lg:grid-cols-[repeat(3,1fr)_auto]'
+      }`}
     >
-      <FilterSelect
-        label="Status"
-        value={filters.status}
-        onChange={(status) => onChange({ status })}
-        allLabel="All statuses"
-        options={asOptions(TASK_STATUSES)}
-      />
+      {!hideStatus && (
+        <FilterSelect
+          label="Status"
+          value={filters.status}
+          onChange={(status) => onChange({ status })}
+          allLabel="All statuses"
+          options={asOptions(TASK_STATUSES)}
+        />
+      )}
       <FilterSelect
         label="Priority"
         value={filters.priority}
